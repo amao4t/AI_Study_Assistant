@@ -80,12 +80,11 @@
         </div>
         <h2><i class="fas fa-upload"></i> Upload Your Study Materials</h2>
         <form id="upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('upload') }}">
-            {{ upload_form.hidden_tag() }} <!-- CSRF token will be generated here -->
+            {{ upload_form.hidden_tag() }}
             <label for="file-input">Choose your study material:</label>
             {{ upload_form.studyMaterial() }}
-            
-            <label for="summary-type">Choose Summary Length:</label>
-            {{ upload_form.summary_type() }}
+        
+            <!-- Removed the summary length option -->
 
             <button type="submit">Upload</button>
         </form>
@@ -93,6 +92,15 @@
         <div id="summary-result" style="display:none; margin-top: 20px;">
             <h3>Summary</h3>
             <p id="summary-content"></p>
+            <button id="quiz-btn" style="display:none;" class="link-button">Take Quiz</button>
+        </div>
+        <div id="quiz-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Practice Questions</h3>
+                <ul id="quiz-questions"></ul>
+                <button id="submit-quiz" class="link-button">Submit Quiz</button>
+            </div>
         </div>
     </section>
 
@@ -130,82 +138,8 @@
     </footer>
 
     <script>
-        function toggleMenu() {
-            const navbarLinks = document.getElementById('navbar-links');
-            navbarLinks.classList.toggle('show');
-        }
-
-        function showSection(sectionId) {
-            const sections = document.querySelectorAll('.content-section');
-            sections.forEach(section => {
-                section.style.display = 'none';
-            });
-            const selectedSection = document.getElementById(sectionId);
-            if (selectedSection) {
-                selectedSection.style.display = 'block';
-            }
-        }
-
-        function handleStartButtonClick() {
-            const loggedIn = "{{ 'username' in session }}"; // Real authentication logic from the server
-            if (loggedIn === "True") {
-                showSection('features-upload');
-            } else {
-                showSection('login-signup');
-            }
-        }
-
-        function toggleSignUp() {
-            const signupForm = document.getElementById('signup-form');
-            signupForm.style.display = signupForm.style.display === 'none' ? 'block' : 'none';
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
-            setTimeout(function() {
-                const flashMessages = document.querySelectorAll('.alert-dismissible');
-                flashMessages.forEach(message => {
-                    if (message.classList.contains('show')) {
-                        message.classList.remove('show');
-                        message.classList.add('fade-out');
-                    }
-                });
-            }, 5000); // Tự động đóng sau 5 giây
-
-            const uploadForm = document.getElementById('upload-form');
-            const loader = document.getElementById('loader');
-            const summaryResult = document.getElementById('summary-result');
-            const summaryContent = document.getElementById('summary-content');
-
-            if (uploadForm) {
-                uploadForm.addEventListener('submit', function (event) {
-                    event.preventDefault();
-                    const formData = new FormData(uploadForm);
-
-                    loader.style.display = 'block';
-                    summaryResult.style.display = 'none';
-
-                    fetch(uploadForm.action, {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        loader.style.display = 'none';
-                        if (data.error) {
-                            const flashContainer = document.getElementById('flash-container');
-                            flashContainer.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                        } else {
-                            summaryContent.textContent = data.summary;
-                            summaryResult.style.display = 'block';
-                        }
-                    })
-                    .catch(error => {
-                        loader.style.display = 'none';
-                        alert('An error occurred while processing your document. Please try again.');
-                    });
-                });
-            }
-        });
+        const loggedIn = {% if logged_in %} true {% else %} false {% endif %};
     </script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

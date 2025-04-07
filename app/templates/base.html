@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Study Assistant - Intelligent Learning Tool{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS block for specific pages -->
+    {% block custom_css %}{% endblock %}
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="{{ url_for('main.index') }}">
+                        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="AI Assistant Logo">
+                        <span>AI Study Assistant</span>
+                    </a>
+                </div>
+                
+                <nav class="main-nav">
+                    <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    
+                    <ul class="nav-links" id="nav-links">
+                        <li><a href="{{ url_for('main.index') }}"><i class="fas fa-home"></i> Home</a></li>
+                        <li><a href="{{ url_for('main.documents_dashboard') }}"><i class="fas fa-file-alt"></i> Documents</a></li>
+                        <li><a href="{{ url_for('main.questions_dashboard') }}"><i class="fas fa-question-circle"></i> Questions</a></li>
+                        <li><a href="{{ url_for('main.text_dashboard') }}"><i class="fas fa-pen"></i> Text Tools</a></li>
+                        <li><a href="{{ url_for('main.study_dashboard') }}"><i class="fas fa-robot"></i> AI Assistant</a></li>
+                    </ul>
+                </nav>
+                
+                <div class="user-menu">
+                    {% if current_user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="dropdown-toggle">
+                            <span class="avatar">{{ current_user.username[0].upper() }}</span>
+                            <span class="username">{{ current_user.username }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a href="{{ url_for('auth_views.profile') }}"><i class="fas fa-user"></i> Profile</a>
+                            <a href="{{ url_for('auth_views.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="auth-buttons">
+                        <a href="{{ url_for('auth_views.login') }}" class="btn btn-outline">Login</a>
+                        <a href="{{ url_for('auth_views.register') }}" class="btn btn-primary">Sign Up</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'warning' %}fa-exclamation-triangle{% elif category == 'info' %}fa-info-circle{% else %}fa-times-circle{% endif %}"></i>
+                                <span>{{ message }}</span>
+                                <button class="alert-close"><i class="fas fa-times"></i></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Content Block -->
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="AI Assistant Logo">
+                    <span>APSA</span>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-section">
+                        <h3>Features</h3>
+                        <ul>
+                            <li><a href="{{ url_for('main.documents_dashboard') }}">AskDOC</a></li>
+                            <li><a href="{{ url_for('main.questions_dashboard') }}">Q&A Generator</a></li>
+                            <li><a href="{{ url_for('main.text_dashboard') }}">Construct</a></li>
+                            <li><a href="{{ url_for('main.study_dashboard') }}">AI Assistant</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-section">
+                        <h3>Resources</h3>
+                        <ul>
+                            <li><a href="#">Documentation</a></li>
+                            <li><a href="#">FAQ</a></li>
+                            <li><a href="#">Blog</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-section">
+                        <h3>Company</h3>
+                        <ul>
+                            <li><a href="#">About Us</a></li>
+                            <li><a href="#">Contact</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="#">Terms of Service</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="footer-social">
+                    <h3>Connect With Us</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 AI Powered Study Assistant. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Custom JS block for specific pages -->
+    {% block custom_js %}{% endblock %}
+</body>
+</html>

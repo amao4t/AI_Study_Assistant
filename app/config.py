@@ -36,7 +36,7 @@ class Config:
     
     # File uploads
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max upload size
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # Increased from 5MB to 10MB max upload size
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
     
     # Cache settings
@@ -47,8 +47,8 @@ class Config:
     EMBED_BATCH_SIZE = 5
     MAX_CHUNK_SIZE = 300
     MAX_OVERLAP = 50
-    MAX_TEXT_LENGTH = 50000
-    MAX_PDF_PAGES = 10
+    MAX_TEXT_LENGTH = 100000  # Increased from 50000 to 100000
+    MAX_PDF_PAGES = 50  # Increased from 10 to 50
     
     # Error logging
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
@@ -66,6 +66,9 @@ class ProductionConfig(Config):
     
     # Use more secure settings for production
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    # Fix for Heroku PostgreSQL URL format (redundant but added for safety)
+    if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
     
     # Enable SSL in production
     SESSION_COOKIE_SECURE = True

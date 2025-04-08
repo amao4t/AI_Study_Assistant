@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import json
 from app import db
 
 class Document(db.Model):
@@ -62,7 +63,7 @@ class Question(db.Model):
     """Model for storing generated questions"""
     id = db.Column(db.Integer, primary_key=True)
     question_text = db.Column(db.Text, nullable=False)
-    question_type = db.Column(db.String(10), nullable=False)  # mcq, qa
+    question_type = db.Column(db.String(15), nullable=False)  # mcq, qa, true_false, fill_in_blank
     options = db.Column(db.Text, nullable=True)  # JSON string for MCQ options
     answer = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -76,15 +77,23 @@ class Question(db.Model):
     
     def to_dict(self):
         """Convert question to dictionary for API responses"""
-        return {
+        result = {
             'id': self.id,
             'question_text': self.question_text,
             'question_type': self.question_type,
-            'options': self.options,
             'answer': self.answer,
             'created_at': self.created_at.isoformat(),
             'document_id': self.document_id
         }
+        
+        # Parse options based on question type
+        if self.options:
+            try:
+                result['options'] = json.loads(self.options)
+            except:
+                result['options'] = {}
+                
+        return result
 
 
 class StudySession(db.Model):

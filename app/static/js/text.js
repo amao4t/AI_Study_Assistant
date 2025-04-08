@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const textHistory = document.getElementById('text-history');
     
     // State
-    let currentTool = 'summarize';
+    let currentTool = 'correct'; // Changed default from 'summarize' to 'correct'
     let history = [];
     
     // Initialize option buttons
@@ -124,13 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let body = { text };
             
             // Add tool-specific options
-            if (currentTool === 'summarize') {
-                const lengthBtn = document.querySelector('#summarize-options .option-buttons:first-child .option-button.active');
-                const formatBtn = document.querySelector('#summarize-options .option-buttons:last-child .option-button.active');
-                
-                body.length = lengthBtn ? lengthBtn.dataset.value : 'medium';
-                body.format = formatBtn ? formatBtn.dataset.value : 'paragraph';
-            } else if (currentTool === 'rephrase') {
+            if (currentTool === 'rephrase') {
                 const styleBtn = document.querySelector('#rephrase-options .option-button.active');
                 body.style = styleBtn ? styleBtn.dataset.value : 'academic';
             } else if (currentTool === 'explain') {
@@ -150,9 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Display result
             let result = '';
             
-            if (currentTool === 'summarize') {
-                result = response.summary;
-            } else if (currentTool === 'correct') {
+            if (currentTool === 'correct') {
                 result = response.corrected_text;
             } else if (currentTool === 'rephrase') {
                 result = response.rephrased_text;
@@ -239,4 +231,83 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize history
     renderHistory();
+    
+    // Helper function to make API calls
+    async function fetchAPI(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            credentials: 'same-origin'
+        });
+        
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const json = JSON.parse(text);
+                throw new Error(json.error || `API Error: ${response.status}`);
+            } catch (e) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+        }
+        
+        return response.json();
+    }
+    
+    // Helper function to show notifications
+    function showNotification(message, type = 'info', duration = 5000) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type}`;
+        notification.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                            type === 'warning' ? 'fa-exclamation-triangle' : 
+                            type === 'danger' ? 'fa-times-circle' : 
+                            'fa-info-circle'}"></i>
+            <span>${message}</span>
+            <button class="alert-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        // Add to notifications container or create one
+        let notificationsContainer = document.querySelector('.notifications-container');
+        if (!notificationsContainer) {
+            notificationsContainer = document.createElement('div');
+            notificationsContainer.className = 'notifications-container';
+            document.body.appendChild(notificationsContainer);
+        }
+        
+        // Add notification to container
+        notificationsContainer.appendChild(notification);
+        
+        // Setup close button
+        const closeBtn = notification.querySelector('.alert-close');
+        closeBtn.addEventListener('click', () => {
+            notification.style.animation = 'slideOut 0.3s ease forwards';
+            setTimeout(() => {
+                notification.remove();
+                
+                // Remove container if empty
+                if (notificationsContainer.children.length === 0) {
+                    notificationsContainer.remove();
+                }
+            }, 300);
+        });
+        
+        // Auto dismiss after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOut 0.3s ease forwards';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                        
+                        // Remove container if empty
+                        if (notificationsContainer.children.length === 0) {
+                            notificationsContainer.remove();
+                        }
+                    }, 300);
+                }
+            }, duration);
+        }
+    }
 });

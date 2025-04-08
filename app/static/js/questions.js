@@ -1,4 +1,4 @@
-// Complete questions.js file with quiz submission functionality
+// Complete questions.js file with improved quiz functionality
 
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let html = '';
         savedQuestionSets.forEach((set, index) => {
-            const questionType = set.question_type === 'mcq' ? 'Multiple Choice' : 'Short Answer';
+            const questionType = getQuestionTypeDisplay(set.question_type);
             const date = new Date(set.created_at).toLocaleDateString();
             
             html += `
@@ -141,6 +141,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadSavedQuestionSet(index);
             });
         });
+    }
+    
+    // Get display name for question type
+    function getQuestionTypeDisplay(type) {
+        switch(type) {
+            case 'mcq': return 'Multiple Choice';
+            case 'qa': return 'Short Answer';
+            case 'true_false': return 'True/False';
+            case 'fill_in_blank': return 'Fill-in-the-blank';
+            default: return 'Unknown';
+        }
     }
     
     // Load a saved question set
@@ -254,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset button
             const submitBtn = generateForm.querySelector('button[type="submit"]');
             if (submitBtn) {
-                submitBtn.innerHTML = 'Generate Questions';
+                submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
         }
@@ -270,8 +281,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="quiz-welcome-icon">
                         <i class="fas fa-question-circle"></i>
                     </div>
-                    <h3>No questions to display</h3>
-                    <p>Generate questions to start the quiz.</p>
+                    <h3>Generate questions to start</h3>
+                    <p>Select a document and generate questions to test your knowledge.</p>
                 </div>
             `;
             return;
@@ -283,12 +294,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let html = '';
         questions.forEach((question, index) => {
+            const questionType = question.question_type || 'qa';
+            
             html += `
-                <div class="quiz-question ${question.question_type}" data-id="${question.id || index}" ${question.question_type === 'mcq' ? `data-answer="${question.answer}"` : ''}>
+                <div class="quiz-question ${questionType}" data-id="${question.id || index}">
                     <h4>${index + 1}. ${question.question}</h4>
             `;
             
-            if (question.question_type === 'mcq') {
+            // Render different question types
+            if (questionType === 'mcq') {
                 // Multiple choice question
                 let options = question.options;
                 if (typeof options === 'string') {
@@ -312,19 +326,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 html += '</div>';
                 
-                // Add hidden result div for feedback
-                html += '<div class="question-result mt-3" style="display: none;"></div>';
+            } else if (questionType === 'true_false') {
+                // True/False question
+                html += `
+                    <div class="option-list">
+                        <div class="option-item">
+                            <input type="radio" id="question-${index}-true" name="question-${index}" value="True" class="option-input">
+                            <label for="question-${index}-true">True</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="radio" id="question-${index}-false" name="question-${index}" value="False" class="option-input">
+                            <label for="question-${index}-false">False</label>
+                        </div>
+                    </div>
+                `;
+                
+            } else if (questionType === 'fill_in_blank') {
+                // Fill-in-the-blank question
+                html += `
+                    <div class="fill-in-blank">
+                        <input type="text" class="form-control fill-blank-input" placeholder="Your answer...">
+                    </div>
+                `;
+                
+                if (question.explanation) {
+                    html += `<div class="explanation" style="display: none;">${question.explanation}</div>`;
+                }
+                
             } else {
-                // Short answer question
+                // Short answer question (qa)
                 html += `
                     <div class="short-answer">
                         <textarea class="short-answer-input" placeholder="Type your answer here..."></textarea>
                     </div>
-                    <div class="question-result mt-3" style="display: none;"></div>
                 `;
             }
             
-            html += '</div>';
+            // Add hidden result div for feedback
+            html += '<div class="question-result mt-3" style="display: none;"></div>';
+            html += '</div>'; // close quiz-question div
         });
         
         quizContainer.innerHTML = html;
@@ -350,99 +390,214 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Evaluate quiz and display results
-    function evaluateQuiz() {
+    async function evaluateQuiz() {
         const questions = document.querySelectorAll('.quiz-question');
         let correctCount = 0;
         let totalQuestions = questions.length;
+        let evaluatedCount = 0;
+        let pendingEvaluations = [];
         
+        // Process each question
         questions.forEach((question, index) => {
             const questionId = question.dataset.id;
             const resultDiv = question.querySelector('.question-result');
+            const questionType = question.classList.contains('mcq') ? 'mcq' : 
+                                question.classList.contains('true_false') ? 'true_false' :
+                                question.classList.contains('fill_in_blank') ? 'fill_in_blank' : 'qa';
             
-            if (question.classList.contains('mcq')) {
+            // Handle MCQ and True/False (client-side evaluation)
+            if (questionType === 'mcq' || questionType === 'true_false') {
                 const selectedOption = question.querySelector('input[type="radio"]:checked');
                 if (!selectedOption) {
                     resultDiv.innerHTML = '<div class="result-warning">No answer selected</div>';
                     resultDiv.style.display = 'block';
+                    evaluatedCount++;
                     return;
                 }
                 
-                const correctAnswer = question.dataset.answer;
+                // Get current question data
+                const currentQuestion = currentQuestions[index];
+                const correctAnswer = currentQuestion.answer;
+                
+                // Verify answer
                 const isCorrect = selectedOption.value === correctAnswer;
                 
                 if (isCorrect) {
                     resultDiv.innerHTML = '<div class="result-correct"><i class="fas fa-check-circle"></i> Correct!</div>';
                     correctCount++;
                 } else {
-                    const correctOptionText = question.querySelector(`label[for="question-${index}-option-${correctAnswer}"]`).textContent;
-                    resultDiv.innerHTML = `
-                        <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
-                        <div class="correct-answer">Correct answer: ${correctOptionText}</div>
-                    `;
+                    let correctOptionText;
+                    if (questionType === 'mcq') {
+                        correctOptionText = currentQuestion.options[correctAnswer];
+                        resultDiv.innerHTML = `
+                            <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
+                            <div class="correct-answer">Correct answer: ${correctAnswer}. ${correctOptionText}</div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
+                            <div class="correct-answer">Correct answer: ${correctAnswer}</div>
+                        `;
+                    }
                 }
                 resultDiv.style.display = 'block';
+                evaluatedCount++;
+                
+            } else if (questionType === 'fill_in_blank') {
+                const answerInput = question.querySelector('.fill-blank-input');
+                if (!answerInput || !answerInput.value.trim()) {
+                    resultDiv.innerHTML = '<div class="result-warning">No answer provided</div>';
+                    resultDiv.style.display = 'block';
+                    evaluatedCount++;
+                    return;
+                }
+                
+                // Get current question data
+                const currentQuestion = currentQuestions[index];
+                const userAnswer = answerInput.value.trim();
+                
+                // Add to pending evaluations
+                pendingEvaluations.push({
+                    questionElement: question,
+                    resultDiv: resultDiv,
+                    questionData: currentQuestion,
+                    userAnswer: userAnswer,
+                    index: index
+                });
+                
             } else {
-                // Short answer logic
+                // Short answer (QA) evaluation
                 const answerInput = question.querySelector('.short-answer-input');
                 if (!answerInput || !answerInput.value.trim()) {
                     resultDiv.innerHTML = '<div class="result-warning">No answer provided</div>';
                     resultDiv.style.display = 'block';
+                    evaluatedCount++;
                     return;
                 }
                 
-                // This would normally call the API to evaluate the answer
-                // For now, we'll use a simplified approach
+                // Get current question data
                 const currentQuestion = currentQuestions[index];
-                const userAnswer = answerInput.value.trim().toLowerCase();
-                const correctAnswer = currentQuestion.answer.toLowerCase();
+                const userAnswer = answerInput.value.trim();
                 
-                // Basic similarity check
-                const similarity = calculateSimilarity(userAnswer, correctAnswer);
-                
-                if (similarity > 0.7) {
-                    resultDiv.innerHTML = '<div class="result-correct"><i class="fas fa-check-circle"></i> Correct!</div>';
-                    correctCount++;
-                } else if (similarity > 0.4) {
-                    resultDiv.innerHTML = `
-                        <div class="result-partial"><i class="fas fa-check-circle"></i> Partially Correct</div>
-                        <div class="correct-answer">Correct answer: ${currentQuestion.answer}</div>
-                    `;
-                    correctCount += 0.5;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
-                        <div class="correct-answer">Correct answer: ${currentQuestion.answer}</div>
-                    `;
-                }
-                resultDiv.style.display = 'block';
+                // Add to pending evaluations
+                pendingEvaluations.push({
+                    questionElement: question,
+                    resultDiv: resultDiv,
+                    questionData: currentQuestion,
+                    userAnswer: userAnswer,
+                    index: index
+                });
             }
         });
         
-        // Display final score
-        displayScore(correctCount, totalQuestions);
+        // Process server-side evaluations
+        if (pendingEvaluations.length > 0) {
+            // Disable submit button while processing
+            const submitBtn = document.getElementById('submit-quiz-btn');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating...';
+                submitBtn.disabled = true;
+            }
+            
+            // Process each evaluation sequentially to avoid overwhelming the server
+            for (const evaluation of pendingEvaluations) {
+                try {
+                    const result = await evaluateAnswer(
+                        evaluation.questionData.id, 
+                        evaluation.userAnswer,
+                        evaluation.questionData.question_type
+                    );
+                    
+                    // Process result
+                    if (result) {
+                        if (result.is_correct) {
+                            evaluation.resultDiv.innerHTML = '<div class="result-correct"><i class="fas fa-check-circle"></i> Correct!</div>';
+                            correctCount++;
+                        } else if (result.score && result.score > 0.5) {
+                            // Partial credit for similarity > 0.5
+                            evaluation.resultDiv.innerHTML = `
+                                <div class="result-partial"><i class="fas fa-check-circle"></i> Partially Correct (${Math.round(result.score * 100)}%)</div>
+                                <div class="correct-answer">Correct answer: ${result.correct_answer}</div>
+                            `;
+                            correctCount += result.score;
+                        } else {
+                            evaluation.resultDiv.innerHTML = `
+                                <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
+                                <div class="correct-answer">Correct answer: ${result.correct_answer}</div>
+                            `;
+                        }
+                        
+                        evaluation.resultDiv.style.display = 'block';
+                        
+                        // Show explanation if available for fill-in-blank
+                        if (evaluation.questionData.question_type === 'fill_in_blank') {
+                            const explanation = evaluation.questionElement.querySelector('.explanation');
+                            if (explanation) {
+                                explanation.style.display = 'block';
+                                explanation.classList.add('mt-2');
+                                explanation.innerHTML = `<strong>Explanation:</strong> ${explanation.innerHTML}`;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error evaluating answer:', error);
+                    evaluation.resultDiv.innerHTML = `
+                        <div class="result-warning">Error evaluating answer</div>
+                    `;
+                    evaluation.resultDiv.style.display = 'block';
+                }
+                
+                evaluatedCount++;
+            }
+            
+            // Re-enable submit button
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Submit Answers';
+                submitBtn.disabled = true; // Keep disabled after submission
+            }
+        }
         
-        // Disable the submit button
-        const submitBtn = document.getElementById('submit-quiz-btn');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-check-double"></i> Quiz Submitted';
+        // Only display score when all questions are evaluated
+        if (evaluatedCount === totalQuestions) {
+            // Display final score
+            displayScore(correctCount, totalQuestions);
+            
+            // Disable the submit button
+            const submitBtn = document.getElementById('submit-quiz-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-check-double"></i> Quiz Submitted';
+            }
         }
     }
     
-    // Calculate similarity between two strings (for short answer evaluation)
-    function calculateSimilarity(str1, str2) {
-        const words1 = str1.toLowerCase().split(/\s+/);
-        const words2 = str2.toLowerCase().split(/\s+/);
+    // Evaluate answer with server API
+    async function evaluateAnswer(questionId, userAnswer, questionType) {
+        if (!questionId) return null;
         
-        const intersection = words1.filter(word => words2.includes(word));
-        return intersection.length / Math.max(words1.length, words2.length);
+        try {
+            const response = await fetchAPI(`/api/questions/${questionId}/evaluate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    answer: userAnswer
+                })
+            });
+            
+            return response;
+        } catch (error) {
+            console.error('Error evaluating answer:', error);
+            return null;
+        }
     }
     
     // Display the final score
     function displayScore(correct, total) {
         const scorePercentage = Math.round((correct / total) * 100);
         const scoreMessage = `<div class="quiz-score">
-            <h4>Your Score: ${correct}/${total} (${scorePercentage}%)</h4>
+            <h4>Your Score: ${correct.toFixed(1)}/${total} (${scorePercentage}%)</h4>
             <p>${getScoreMessage(scorePercentage)}</p>
         </div>`;
         
@@ -467,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Check answers (original method, now redirects to evaluateQuiz)
-    async function checkAnswers() {
+    function checkAnswers() {
         evaluateQuiz();
     }
     

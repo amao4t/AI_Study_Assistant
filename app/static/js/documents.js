@@ -1,4 +1,4 @@
-// Updated documents.js file with improved chat formatting and error handling
+// Enhanced documents.js file with improved document handling capabilities
 
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -23,19 +23,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatPanel = document.getElementById('document-chat-panel');
     const clearChatBtn = document.getElementById('clear-chat-btn');
     const copyLastMessageBtn = document.getElementById('copy-last-message-btn');
+    const uploadStatusContainer = document.createElement('div');
     
     // State
     let documentFiles = []; // Renamed from 'documents' to avoid conflict with DOM 'document'
     let activeDocumentId = null;
     let selectedDocumentId = null;
     let chatHistory = [];
+    let processingDocument = false;
     
     // Initialize
+    if (uploadForm) {
+        uploadForm.parentNode.appendChild(uploadStatusContainer);
+        uploadStatusContainer.className = 'upload-status mt-3';
+    }
+    
     loadDocuments();
     
     // Event Listeners
     if (uploadForm) {
         uploadForm.addEventListener('submit', handleDocumentUpload);
+        
+        // Add file size validation on file selection
+        const fileInput = document.getElementById('document');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                validateFileSize(this);
+            });
+        }
     }
     
     if (questionForm) {
@@ -64,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (chatWithDocumentBtn) {
         chatWithDocumentBtn.addEventListener('click', function() {
-            console.log("Chat button clicked, active document:", activeDocumentId);
             if (activeDocumentId) {
                 openDocumentChat(activeDocumentId);
             } else {
@@ -79,6 +93,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (copyLastMessageBtn) {
         copyLastMessageBtn.addEventListener('click', copyLastMessage);
+    }
+    
+    // Validate file size before upload
+    function validateFileSize(fileInput) {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        
+        const file = fileInput.files[0];
+        const maxSize = 10 * 1024 * 1024; // 10MB max (increased from 5MB)
+        
+        if (file.size > maxSize) {
+            showNotification('File is too large. Maximum size is 10MB', 'warning');
+            fileInput.value = ''; // Clear the file input
+        }
     }
     
     // Load user's documents
@@ -208,6 +235,11 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleDocumentUpload(e) {
         e.preventDefault();
         
+        if (processingDocument) {
+            showNotification('A document is already being processed. Please wait.', 'warning');
+            return;
+        }
+        
         const formData = new FormData(uploadForm);
         const fileInput = document.getElementById('document');
         
@@ -216,12 +248,46 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        const file = fileInput.files[0];
+        
         try {
             // Show loading state
+            processingDocument = true;
             const submitBtn = uploadForm.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
             submitBtn.disabled = true;
+            
+            // Show progress for large files
+            uploadStatusContainer.innerHTML = `
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        Processing document...
+                    </div>
+                </div>
+            `;
+            
+            // Simulate progress for large files
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progress > 90) progress = 90; // Cap at 90% until complete
+                
+                const progressBar = uploadStatusContainer.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.setAttribute('aria-valuenow', progress);
+                    
+                    if (progress < 30) {
+                        progressBar.innerText = 'Uploading file...';
+                    } else if (progress < 60) {
+                        progressBar.innerText = 'Processing content...';
+                    } else {
+                        progressBar.innerText = 'Extracting text...';
+                    }
+                }
+            }, 500);
             
             const response = await fetch('/api/documents/', {
                 method: 'POST',
@@ -229,14 +295,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 credentials: 'same-origin'
             });
             
+            clearInterval(progressInterval);
+            
             const data = await response.json();
             
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to upload document');
             }
             
+            // Complete progress
+            const progressBar = uploadStatusContainer.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.setAttribute('aria-valuenow', 100);
+                progressBar.innerText = 'Complete!';
+                progressBar.classList.remove('progress-bar-animated');
+            }
+            
             // Reset form
             uploadForm.reset();
+            
+            // Clear progress after a delay
+            setTimeout(() => {
+                uploadStatusContainer.innerHTML = '';
+            }, 3000);
             
             // Add new document to list
             documentFiles.unshift(data.document);
@@ -249,11 +331,26 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error uploading document:', error);
             showNotification(error.message, 'danger');
+            
+            // Show error in progress
+            const progressBar = uploadStatusContainer.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+                progressBar.classList.add('bg-danger');
+                progressBar.innerText = 'Upload failed';
+            }
+            
+            // Clear progress after a delay
+            setTimeout(() => {
+                uploadStatusContainer.innerHTML = '';
+            }, 5000);
         } finally {
             // Reset button
             const submitBtn = uploadForm.querySelector('button[type="submit"]');
             submitBtn.innerHTML = 'Upload Document';
             submitBtn.disabled = false;
+            processingDocument = false;
         }
     }
     
@@ -273,8 +370,9 @@ document.addEventListener('DOMContentLoaded', function() {
             summaryLoading.style.display = 'none';
             summaryContent.style.display = 'block';
             
-            // Display summary
-            summaryContent.innerHTML = response.summary.replace(/\n/g, '<br>');
+            // Format and display summary
+            const formattedSummary = formatMessageContent(response.summary);
+            summaryContent.innerHTML = formattedSummary;
             
         } catch (error) {
             console.error('Error loading summary:', error);
@@ -310,10 +408,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Open document chat - Updated function 
+    // Open document chat
     function openDocumentChat(documentId) {
-        console.log("Opening chat for document:", documentId);
-        
         // Reset chat history
         chatHistory = [];
         
@@ -346,6 +442,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <h3>Document Chat Assistant</h3>
                     <p>Ask questions about "${doc.filename}" to get AI-powered answers.</p>
+                    <div class="chat-instructions mt-3">
+                        <p><strong>Tips for better results:</strong></p>
+                        <ul>
+                            <li>Ask specific questions about the content</li>
+                            <li>Refer to sections or concepts from the document</li>
+                            <li>For long documents, try to be specific about which part you're asking about</li>
+                        </ul>
+                    </div>
                 </div>
             `;
         }
@@ -397,8 +501,6 @@ document.addEventListener('DOMContentLoaded', function() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
         
         try {
-            console.log("Sending chat request for document:", activeDocumentId);
-            
             // Send request to API
             const response = await fetchAPI(`/api/document-chat/${activeDocumentId}`, {
                 method: 'POST',
@@ -441,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Add message to chat - Updated for better formatting
+    // Add message to chat with better formatting
     function addMessageToChat(message, sender) {
         if (!chatContainer) return;
         
@@ -455,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const messageEl = document.createElement('div');
         messageEl.className = `chat-bubble ${sender}`;
         
-        // Format message with simple Markdown
+        // Format message with markdown-like processing
         message = formatMessageContent(message);
         
         // Use innerHTML with processed content
@@ -475,16 +577,24 @@ document.addEventListener('DOMContentLoaded', function() {
         return messageEl;
     }
     
-    // Format message content with simple Markdown
+    // Format message content with improved markdown-like processing
     function formatMessageContent(message) {
         // Replace URLs with clickable links
         message = message.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+        
+        // Format headings
+        message = message.replace(/^### (.*?)$/gm, '<h5>$1</h5>');
+        message = message.replace(/^## (.*?)$/gm, '<h4>$1</h4>');
+        message = message.replace(/^# (.*?)$/gm, '<h3>$1</h3>');
         
         // Process ordered lists
         message = message.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ol>$1</ol>');
         
         // Process unordered lists
-        message = message.replace(/^-\s(.+)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+        message = message.replace(/^[*-]\s(.+)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+        
+        // Process blockquotes
+        message = message.replace(/^>\s(.+)$/gm, '<blockquote>$1</blockquote>');
         
         // Process code blocks
         message = message.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
@@ -571,13 +681,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <h3>Document Chat Assistant</h3>
                 <p>Ask questions about "${doc ? doc.filename : 'your document'}" to get AI-powered answers.</p>
+                <div class="chat-instructions mt-3">
+                    <p><strong>Tips for better results:</strong></p>
+                    <ul>
+                        <li>Ask specific questions about the content</li>
+                        <li>Refer to sections or concepts from the document</li>
+                        <li>For long documents, try to be specific about which part you're asking about</li>
+                    </ul>
+                </div>
             </div>
         `;
         
         showNotification('Chat history cleared', 'info');
     }
     
-    // Preview document
+    // Preview document with progress indicator for large files
     async function previewDocument(id) {
         if (!documentPreviewModal || !documentPreviewContent) return;
         
@@ -588,15 +706,45 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show modal
         documentPreviewModal.classList.add('show');
-        documentPreviewContent.innerHTML = '<div class="loading-indicator"><i class="fas fa-spinner fa-spin"></i> Loading document...</div>';
+        documentPreviewContent.innerHTML = '<div class="loading-indicator"><i class="fas fa-spinner fa-spin"></i> Loading document text...</div>';
         
         try {
+            // For larger documents, show a progress message
+            const fileSize = doc.file_size;
+            if (fileSize > 1024 * 1024) { // If > 1MB
+                documentPreviewContent.innerHTML = `
+                    <div class="loading-indicator">
+                        <i class="fas fa-spinner fa-spin"></i> Loading large document (${formatFileSize(fileSize)})...
+                        <div class="loading-progress mt-2">This may take several seconds for large documents.</div>
+                    </div>
+                `;
+            }
+            
             // Get document text
             const response = await fetchAPI(`/api/documents/${id}/text`);
             
             if (response.text) {
-                // Show preview
-                documentPreviewContent.innerHTML = `<pre class="document-text">${response.text}</pre>`;
+                // Process text for display
+                let displayText = response.text;
+                
+                // For PDF files, keep the page markers
+                if (doc.file_type === 'pdf') {
+                    // Highlight page markers for better navigation
+                    displayText = displayText.replace(/--- Page (\d+) ---/g, 
+                        '<div class="page-marker">--- Page $1 ---</div>');
+                }
+                
+                // Show preview with proper styling
+                documentPreviewContent.innerHTML = `
+                    <div class="document-text-preview">
+                        ${displayText}
+                    </div>
+                `;
+                
+                // Add page navigation for long documents
+                if (doc.file_type === 'pdf' && response.text.includes('--- Page')) {
+                    addPageNavigation(documentPreviewContent);
+                }
             } else {
                 documentPreviewContent.innerHTML = '<div class="error-message">Failed to load document content.</div>';
             }
@@ -604,6 +752,37 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading document text:', error);
             documentPreviewContent.innerHTML = '<div class="error-message">Failed to load document content. Please try again.</div>';
         }
+    }
+    
+    // Add page navigation for PDF documents
+    function addPageNavigation(container) {
+        const pageMarkers = container.querySelectorAll('.page-marker');
+        if (pageMarkers.length <= 1) return;
+        
+        // Create navigation
+        const navDiv = document.createElement('div');
+        navDiv.className = 'page-navigation';
+        navDiv.innerHTML = '<span>Jump to page: </span>';
+        
+        // Add page buttons
+        pageMarkers.forEach((marker, index) => {
+            // Extract page number
+            const pageNumMatch = marker.textContent.match(/--- Page (\d+) ---/);
+            if (!pageNumMatch) return;
+            
+            const pageNum = pageNumMatch[1];
+            const pageButton = document.createElement('button');
+            pageButton.className = 'btn btn-sm btn-outline-primary m-1';
+            pageButton.textContent = pageNum;
+            pageButton.addEventListener('click', () => {
+                marker.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            
+            navDiv.appendChild(pageButton);
+        });
+        
+        // Insert at the top of the container
+        container.insertBefore(navDiv, container.firstChild);
     }
     
     // Select active document from preview
@@ -688,11 +867,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
-    // Helper function to show notifications (assuming this exists in your app)
+    // Helper function to show notifications
     function showNotification(message, type) {
-        // This function should be implemented in your codebase
-        console.log(`Notification (${type}): ${message}`);
-        
         // Create notification element
         const notification = document.createElement('div');
         notification.className = `alert alert-${type}`;
@@ -748,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
     
-    // Helper function to make API calls (assuming this exists in your app)
+    // Helper function to make API calls
     async function fetchAPI(url, options = {}) {
         const response = await fetch(url, {
             ...options,
@@ -787,4 +963,80 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
         else return (bytes / 1048576).toFixed(1) + ' MB';
     }
+    
+    // CSS styles for document preview
+    const style = document.createElement('style');
+    style.textContent = `
+        .document-text-preview {
+            white-space: pre-wrap;
+            font-family: monospace;
+            line-height: 1.5;
+            padding: 10px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .page-marker {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            padding: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        
+        .page-navigation {
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-color);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1;
+        }
+        
+        .loading-progress {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .upload-status {
+            margin-top: 10px;
+        }
+        
+        .progress {
+            height: 20px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background-color: var(--bg-secondary);
+        }
+        
+        .progress-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            transition: width 0.3s ease;
+        }
+        
+        .chat-instructions {
+            text-align: left;
+            background-color: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .chat-instructions ul {
+            margin-left: 20px;
+            margin-bottom: 0;
+        }
+        
+        .chat-instructions li {
+            margin-bottom: 5px;
+            list-style-type: disc;
+        }
+    `;
+    document.head.appendChild(style);
 });

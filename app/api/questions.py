@@ -31,8 +31,9 @@ def generate_questions(document_id):
     count = data.get('count', 5)  # Default to 5 questions
     
     # Validate parameters
-    if question_type not in ['mcq', 'qa']:
-        return jsonify({'error': 'Invalid question type, must be "mcq" or "qa"'}), 400
+    valid_question_types = ['mcq', 'qa', 'true_false', 'fill_in_blank']
+    if question_type not in valid_question_types:
+        return jsonify({'error': f'Invalid question type, must be one of: {", ".join(valid_question_types)}'}), 400
     
     if not isinstance(count, int) or count < 1 or count > 20:
         return jsonify({'error': 'Count must be between 1 and 20'}), 400

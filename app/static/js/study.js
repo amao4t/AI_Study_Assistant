@@ -1,4 +1,4 @@
-// Updated study.js file with improved chat formatting and error handling
+// Fixed study.js file with improved handling for techniques and resources
 
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Techniques Functionality
+    // Techniques Functionality - Fixed issue with form submission
     if (techniquesForm) {
         techniquesForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -133,7 +133,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const subject = document.getElementById('techniques-subject').value;
             const learningStyle = document.getElementById('learning-style').value;
             
-            // Get techniques
+            // Show loading state
+            const submitBtn = techniquesForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+            submitBtn.disabled = true;
+            
+            // Get techniques with proper error handling
             getTechniques(subject, learningStyle);
         });
     }
@@ -472,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Get resources
+    // Get resources - FIXED to properly create clickable links
     async function getResources(subject, level, resourceType) {
         if (!resourcesForm || !resourcesResult || !resourcesList) return;
         
@@ -523,46 +529,101 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Render resources
-    function renderResources(resources) {
-        if (!resourcesList) return;
-        
-        resourcesList.innerHTML = '';
-        
-        if (resources.length === 0) {
-            resourcesList.innerHTML = '<p>No resources found</p>';
-            return;
-        }
-        
-        resources.forEach(resource => {
-            const resourceElement = document.createElement('div');
-            resourceElement.className = 'resource-item';
-            
-            resourceElement.innerHTML = `
-                <h6 class="resource-title">${resource.title}</h6>
-                <div class="resource-meta">
-                    <span><i class="fas fa-tag"></i> ${resource.type}</span>
-                    <span><i class="fas fa-level-up-alt"></i> ${resource.level}</span>
-                </div>
-                <p>${resource.description}</p>
-            `;
-            
-            resourcesList.appendChild(resourceElement);
-        });
+   // Completely rewritten renderResources function with forced links
+function renderResources(resources) {
+    if (!resourcesList) return;
+    
+    resourcesList.innerHTML = '';
+    
+    if (resources.length === 0) {
+        resourcesList.innerHTML = '<p>No resources found</p>';
+        return;
     }
     
-    // Get techniques
+    resources.forEach(resource => {
+        const resourceElement = document.createElement('div');
+        resourceElement.className = 'resource-item';
+        
+        // Get resource info
+        const title = resource.title || 'Resource';
+        const type = resource.type || 'resource';
+        const description = resource.description || '';
+        const level = resource.level || 'All levels';
+        
+        // Create search URL based on resource type
+        let searchUrl = '';
+        if (type.toLowerCase().includes('book')) {
+            searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(title)}`;
+        } 
+        else if (type.toLowerCase().includes('course')) {
+            searchUrl = `https://www.coursera.org/search?query=${encodeURIComponent(title)}`;
+        }
+        else if (type.toLowerCase().includes('video')) {
+            searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(title)}`;
+        }
+        else if (title.includes('Khan Academy')) {
+            searchUrl = 'https://www.khanacademy.org/';
+        }
+        else if (title.includes('Coursera')) {
+            searchUrl = 'https://www.coursera.org/';
+        }
+        else {
+            searchUrl = `https://www.google.com/search?q=${encodeURIComponent(title)}`;
+        }
+        
+        // Create HTML with forced link
+        resourceElement.innerHTML = `
+            <h6 class="resource-title">
+                <a href="${searchUrl}" target="_blank" class="resource-link">${title}</a>
+            </h6>
+            <div class="resource-meta">
+                <span><i class="fas fa-tag"></i> ${type}</span>
+                <span><i class="fas fa-level-up-alt"></i> ${level}</span>
+            </div>
+            <p>${description}</p>
+        `;
+        
+        resourcesList.appendChild(resourceElement);
+    });
+    
+    // Add CSS to make resource links more visible
+    const style = document.createElement('style');
+    style.textContent = `
+        .resource-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .resource-link:hover {
+            text-decoration: underline;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+    // Get techniques - FIXED to properly handle errors and form submission
     async function getTechniques(subject, learningStyle) {
         if (!techniquesForm || !techniquesResult || !techniquesList) return;
         
         // Show loading state
         const submitBtn = techniquesForm.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
+        const originalText = submitBtn.innerHTML || 'Suggest Techniques';
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
         submitBtn.disabled = true;
         techniquesResult.style.display = 'none';
         
         try {
+            console.log('Fetching techniques for:', subject, learningStyle);
+            
+            // Show immediate feedback to user
+            techniquesList.innerHTML = `
+                <div class="loading-indicator">
+                    <i class="fas fa-spinner fa-spin"></i> Finding study techniques for ${subject}...
+                </div>
+            `;
+            techniquesResult.style.display = 'block';
+            
             const response = await fetch('/api/study/techniques', {
                 method: 'POST',
                 headers: {
@@ -576,11 +637,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
             
+            // Handle different types of errors
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                let errorMessage = 'Failed to fetch study techniques.';
+                
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // If we can't parse the JSON, use the status text
+                    errorMessage = response.statusText || errorMessage;
+                }
+                
+                // For 500 errors, provide more helpful message
+                if (response.status === 500) {
+                    errorMessage = "The server encountered an error processing your request. This feature may be temporarily unavailable.";
+                    
+                    // Fallback to generating generic techniques (client-side fallback)
+                    const fallbackTechniques = generateFallbackTechniques(subject, learningStyle);
+                    renderTechniques(fallbackTechniques);
+                    
+                    // Show warning to user
+                    showNotification("Using generated techniques due to server error. These are general suggestions only.", 'warning');
+                    return;
+                }
+                
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
+            console.log('Techniques response:', data);
             
             // Check if this is a fallback response
             if (data.is_fallback) {
@@ -590,18 +676,65 @@ document.addEventListener('DOMContentLoaded', function() {
             // Display techniques
             renderTechniques(data.techniques || []);
             techniquesResult.style.display = 'block';
-            showNotification('Techniques found successfully', 'success');
+            showNotification('Study techniques found successfully', 'success');
         } catch (error) {
             console.error('Error fetching techniques:', error);
-            showNotification('Failed to find techniques', 'danger');
+            techniquesList.innerHTML = `
+                <div class="error-message">
+                    <p>Error: ${error.message}</p>
+                    <p class="mt-3">Please try again later or try another feature.</p>
+                </div>
+            `;
+            techniquesResult.style.display = 'block';
+            showNotification('Failed to find techniques: ' + error.message, 'danger');
         } finally {
             // Reset button
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
         }
     }
+
+    // Client-side fallback for when the server fails
+function generateFallbackTechniques(subject, learningStyle) {
+    const fallbackTechniques = [
+        {
+            name: "Active Recall",
+            description: `Test yourself on ${subject} concepts by writing questions and answering them without looking at your notes.`,
+            benefits: "Strengthens memory pathways and identifies knowledge gaps."
+        },
+        {
+            name: "Spaced Repetition",
+            description: `Review ${subject} material at increasing intervals over time.`,
+            benefits: "Optimizes memorization and retention."
+        },
+        {
+            name: "Pomodoro Technique",
+            description: "Study in focused 25-minute intervals with 5-minute breaks between them.",
+            benefits: "Improves focus and prevents burnout during long study sessions."
+        }
+    ];
     
-    // Render techniques
+    // Add learning style specific technique if provided
+    if (learningStyle) {
+        if (learningStyle.toLowerCase().includes("visual")) {
+            fallbackTechniques.push({
+                name: "Mind Mapping",
+                description: `Create diagrams that connect ${subject} concepts visually.`,
+                benefits: "Excellent for visual learners, creating spatial memory connections."
+            });
+        } else if (learningStyle.toLowerCase().includes("auditory")) {
+            fallbackTechniques.push({
+                name: "Verbal Repetition",
+                description: `Read ${subject} material aloud and record yourself for later review.`,
+                benefits: "Leverages auditory learning preferences for better retention."
+            });
+        }
+    }
+    
+    return fallbackTechniques;
+}
+    
+    // Render techniques - FIXED to handle different data formats
     function renderTechniques(techniques) {
         if (!techniquesList) return;
         
@@ -616,27 +749,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const techniqueElement = document.createElement('div');
             techniqueElement.className = 'technique-item';
             
-            let techniqueContent = `
-                <h6 class="technique-title">${technique.name}</h6>
-                <p>${technique.description}</p>
-            `;
-            
-            // Add steps if available
-            if (technique.steps && technique.steps.length > 0) {
-                techniqueContent += '<p><strong>Steps:</strong></p><ol>';
-                technique.steps.forEach(step => {
-                    techniqueContent += `<li>${step}</li>`;
-                });
-                techniqueContent += '</ol>';
+            // Handle different formats of technique data
+            if (typeof technique === 'string') {
+                // Simple string format
+                techniqueElement.innerHTML = `<h6 class="technique-title">${technique}</h6>`;
+            } else {
+                // Object format with potentially more details
+                let techniqueContent = `
+                    <h6 class="technique-title">${technique.name || technique.title || 'Study Technique'}</h6>
+                `;
+                
+                if (technique.description) {
+                    techniqueContent += `<p>${technique.description}</p>`;
+                }
+                
+                // Add steps if available
+                if (technique.steps && technique.steps.length > 0) {
+                    techniqueContent += '<p><strong>Steps:</strong></p><ol>';
+                    technique.steps.forEach(step => {
+                        techniqueContent += `<li>${step}</li>`;
+                    });
+                    techniqueContent += '</ol>';
+                }
+                
+                if (technique.benefits) {
+                    techniqueContent += `<p><strong>Benefits:</strong> ${technique.benefits}</p>`;
+                }
+                
+                techniqueElement.innerHTML = techniqueContent;
             }
             
-            if (technique.benefits) {
-                techniqueContent += `<p><strong>Benefits:</strong> ${technique.benefits}</p>`;
-            }
-            
-            techniqueElement.innerHTML = techniqueContent;
             techniquesList.appendChild(techniqueElement);
         });
+        
+        // If techniques is an object but not an array, handle that case
+        if (!Array.isArray(techniques) && typeof techniques === 'object') {
+            techniquesList.innerHTML = '<p>Received data in unexpected format. Please try again.</p>';
+        }
     }
     
     // Load study sessions

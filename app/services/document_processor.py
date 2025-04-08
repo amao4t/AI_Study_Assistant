@@ -6,6 +6,8 @@ import re
 import logging
 import requests
 from werkzeug.utils import secure_filename
+import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app import db
 from app.models.document import Document, DocumentChunk
@@ -45,8 +47,8 @@ class DocumentProcessor:
             file_size = file.tell()
             file.seek(0)  # Reset file pointer
             
-            if file_size > 5 * 1024 * 1024:  # Limit to 5MB
-                return None, "File too large. Maximum file size is 5MB."
+            if file_size > 10 * 1024 * 1024:  # Limit to 10MB (increased from 5MB)
+                return None, "File too large. Maximum file size is 10MB."
             
             # Save the file
             file.save(file_path)
@@ -110,17 +112,18 @@ class DocumentProcessor:
             logger.info(f"Text extracted, length: {text_length} characters")
             
             # Truncate very long texts to prevent memory issues
-            if text_length > 50000:
-                logger.warning(f"Text too long ({text_length} chars), truncating to 50000")
-                text = text[:50000]
-                text_length = 50000
+            max_text_length = 100000  # Tăng từ 50000 lên 100000
+            if text_length > max_text_length:
+                logger.warning(f"Text too long ({text_length} chars), truncating to {max_text_length}")
+                text = text[:max_text_length]
+                text_length = max_text_length
             
             # Improved chunking with better overlap handling
             chunk_size = 1000
             overlap = 100
             
-            # HARD LIMIT on number of chunks
-            MAX_CHUNKS = 50
+            # Increased maximum number of chunks
+            MAX_CHUNKS = 100  # Increased from 50 to 100
             
             # Delete any existing chunks for this document
             existing_chunks = DocumentChunk.query.filter_by(document_id=document.id).all()
@@ -178,25 +181,36 @@ class DocumentProcessor:
             return False, str(e)
     
     def _extract_text_from_pdf(self, file_path):
-        """Extract text from PDF file with safety limits"""
+        """Extract text from PDF file with improved processing for larger documents"""
         import PyPDF2
         text = ""
         try:
             with open(file_path, 'rb') as f:
                 pdf_reader = PyPDF2.PdfReader(f)
-                # Limit to 10 pages only
-                pages_to_process = min(len(pdf_reader.pages), 10)
+                # Increased limit of pages to process (max 50 pages)
+                pages_to_process = min(len(pdf_reader.pages), 50)
                 logger.info(f"Processing {pages_to_process} pages from PDF")
                 
-                for i in range(pages_to_process):
-                    try:
-                        page = pdf_reader.pages[i]
-                        page_text = page.extract_text()
-                        # Add page number for reference
-                        text += f"\n--- Page {i+1} ---\n"
-                        text += page_text + "\n"
-                    except Exception as e:
-                        logger.warning(f"Error extracting text from page {i}: {e}")
+                # Using ThreadPoolExecutor for parallel page processing
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    # Create tasks to process each page
+                    future_to_page = {
+                        executor.submit(self._extract_page_text, pdf_reader, i): i 
+                        for i in range(pages_to_process)
+                    }
+                    
+                    # Collect results
+                    page_texts = [""] * pages_to_process
+                    for future in as_completed(future_to_page):
+                        page_num = future_to_page[future]
+                        try:
+                            page_text = future.result()
+                            page_texts[page_num] = f"\n--- Page {page_num+1} ---\n{page_text}\n"
+                        except Exception as e:
+                            logger.warning(f"Error extracting text from page {page_num}: {e}")
+                    
+                    # Combine all text in page order
+                    text = "".join(page_texts)
                     
             return text
         except Exception as e:
@@ -204,36 +218,68 @@ class DocumentProcessor:
             # Return empty string to fail gracefully
             return ""
     
+    def _extract_page_text(self, pdf_reader, page_num):
+        """Extract text from a single PDF page"""
+        try:
+            page = pdf_reader.pages[page_num]
+            return page.extract_text() or ""
+        except Exception as e:
+            logger.warning(f"Failed to extract text from page {page_num}: {e}")
+            return ""
+    
     def _extract_text_from_docx(self, file_path):
-        """Extract text from DOCX file with safety limits"""
+        """Extract text from DOCX file with improved handling"""
         import docx
         try:
             doc = docx.Document(file_path)
-            paragraphs = doc.paragraphs
             
-            # Limit number of paragraphs for safety
-            max_paragraphs = 100
-            if len(paragraphs) > max_paragraphs:
-                logger.warning(f"Limiting document to {max_paragraphs} paragraphs (was {len(paragraphs)})")
-                paragraphs = paragraphs[:max_paragraphs]
-                
-            text = ""
+            # Increased paragraph limit
+            max_paragraphs = 200  # Increased from 100 to 200
+            
+            text = []
+            
+            # Process paragraphs with limit
+            paragraphs = doc.paragraphs[:max_paragraphs] if len(doc.paragraphs) > max_paragraphs else doc.paragraphs
             for paragraph in paragraphs:
-                text += paragraph.text + "\n"
-                
-            return text
+                if paragraph.text:
+                    text.append(paragraph.text)
+            
+            # Process tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = []
+                    for cell in row.cells:
+                        if cell.text:
+                            row_text.append(cell.text)
+                    if row_text:
+                        text.append(" | ".join(row_text))
+            
+            return "\n".join(text)
         except Exception as e:
             logger.exception("Error extracting text from DOCX")
             # Return empty string to fail gracefully
             return ""
     
     def _extract_text_from_txt(self, file_path):
-        """Extract text from TXT file with safety limits"""
+        """Extract text from TXT file with better encoding handling"""
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                # Read up to 50000 chars for safety
-                text = f.read(50000)
-            return text
+            # Increased character limit from 50,000 to 100,000
+            max_chars = 100000
+            encodings = ['utf-8', 'latin-1', 'ascii', 'cp1252']
+            
+            for encoding in encodings:
+                try:
+                    with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                        text = f.read(max_chars)
+                        return text
+                except UnicodeDecodeError:
+                    continue
+            
+            # Fallback to binary mode with replacement
+            with open(file_path, 'rb') as f:
+                binary_data = f.read(max_chars)
+                return binary_data.decode('utf-8', errors='replace')
+                
         except Exception as e:
             logger.exception("Error extracting text from TXT")
             # Return empty string to fail gracefully
@@ -241,15 +287,23 @@ class DocumentProcessor:
     
     def _extract_text_basic(self, file_path):
         """Fallback text extraction - try to read as text with various encodings"""
-        encodings = ['utf-8', 'latin-1', 'ascii']
+        encodings = ['utf-8', 'latin-1', 'ascii', 'cp1252']
+        max_chars = 100000  # Increased from 50000 to 100000
+        
         for encoding in encodings:
             try:
                 with open(file_path, 'r', encoding=encoding, errors='replace') as f:
-                    # Read up to 50000 chars for safety
-                    return f.read(50000)
+                    return f.read(max_chars)
             except:
                 continue
-        return ""
+                
+        # Fallback to binary read with replacement character
+        try:
+            with open(file_path, 'rb') as f:
+                binary_data = f.read(max_chars)
+                return binary_data.decode('utf-8', errors='replace')
+        except:
+            return ""
     
     def get_document_text(self, document_id):
         """Get text from document chunks"""
@@ -267,8 +321,8 @@ class DocumentProcessor:
                 # Fallback to extraction if no chunks
                 return self._extract_document_text(document), None
             
-            # Combine chunks - limit number of chunks to prevent memory issues
-            MAX_CHUNKS_TO_COMBINE = 50
+            # Combine chunks - increased maximum number of chunks to combine
+            MAX_CHUNKS_TO_COMBINE = 100  # Increased from 50 to 100
             if len(chunks) > MAX_CHUNKS_TO_COMBINE:
                 logger.warning(f"Limiting to {MAX_CHUNKS_TO_COMBINE} chunks for text retrieval (was {len(chunks)})")
                 chunks = chunks[:MAX_CHUNKS_TO_COMBINE]
@@ -355,8 +409,8 @@ class DocumentProcessor:
             if not api_key:
                 return None, "API key not configured"
             
-            # Maximum length for text to summarize
-            max_length = 10000
+            # Maximum length for text to summarize - increased limit
+            max_length = 20000  # Increased from 10000
             if len(text) > max_length:
                 logger.warning(f"Text too long ({len(text)} chars) for summarization, truncating to {max_length}")
                 text = text[:max_length]
@@ -373,9 +427,10 @@ class DocumentProcessor:
             messages = [
                 {
                     "role": "user",
-                    "content": f"""Please provide a concise but comprehensive summary of the following document.
-                    Focus on the main points, key arguments, and important conclusions.
+                    "content": f"""Please provide a comprehensive summary of the following document.
                     Organize the summary with clear headings and bullet points where appropriate.
+                    Capture all the main points, key arguments, important details, and conclusions.
+                    The summary should be thorough but concise, focusing on the essential information.
                     
                     DOCUMENT TO SUMMARIZE:
                     {text}

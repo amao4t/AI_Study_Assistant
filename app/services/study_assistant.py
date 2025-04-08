@@ -284,8 +284,149 @@ Respond ONLY with valid JSON.
         
         return fallback_plan
         
-    # Similar improvements can be made to other methods
-    # Adding only what's necessary for basic functionality
+    def suggest_study_technique(self, subject, learning_style=None):
+        """Suggest study techniques for a subject based on learning style
+        
+        Args:
+            subject: The subject to study
+            learning_style: Optional learning style preference
+            
+        Returns:
+            Tuple of (techniques, error)
+        """
+        try:
+            logger.info(f"Suggesting study techniques for {subject}, learning style: {learning_style}")
+            
+            # Build prompt based on learning style
+            if learning_style and learning_style.strip():
+                prompt = f"""
+Suggest 3-5 effective study techniques for learning {subject} that would work well for someone with a {learning_style} learning style.
+
+For each technique, please provide:
+1. A name or title for the technique
+2. A brief description of how to implement it
+3. Why it's particularly effective for {subject}
+4. How it aligns with a {learning_style} learning style
+
+Format your response as a structured JSON array where each technique is an object with 'name', 'description', 'benefits', and optionally 'steps' fields.
+
+Respond ONLY with valid JSON.
+"""
+            else:
+                prompt = f"""
+Suggest 3-5 effective study techniques for learning {subject}.
+
+For each technique, please provide:
+1. A name or title for the technique
+2. A brief description of how to implement it
+3. Why it's particularly effective for {subject}
+4. Optional step-by-step instructions if applicable
+
+Format your response as a structured JSON array where each technique is an object with 'name', 'description', 'benefits', and optionally 'steps' fields.
+
+Respond ONLY with valid JSON.
+"""
+            
+            # Use safe_api_call for better error handling
+            techniques, is_fallback, error = safe_api_call(
+                self._get_techniques_json,
+                prompt=prompt,
+                service_name="Study Techniques Suggester",
+                fallback_func=self._get_techniques_fallback
+            )
+            
+            if error and not techniques:
+                return [], error
+                
+            return techniques, None
+                
+        except Exception as e:
+            logger.exception(f"Error suggesting study techniques: {str(e)}")
+            return [], str(e)
+            
+    def _get_techniques_json(self, prompt):
+        """Get study techniques from Claude API and parse as JSON"""
+        # Make API call
+        response = self._call_claude_api(prompt, max_tokens=1500, temperature=0.7)
+        
+        # Parse the JSON response
+        try:
+            # Find JSON array in the response
+            json_start = response.find('[')
+            json_end = response.rfind(']')
+            
+            if json_start >= 0 and json_end >= 0:
+                json_str = response[json_start:json_end+1]
+                techniques = json.loads(json_str)
+                logger.info("Successfully generated and parsed techniques")
+                return techniques
+            else:
+                logger.warning("No JSON array found in techniques response")
+                # Try to handle non-JSON response by converting to a simple format
+                techniques = [{"name": "Study Technique", "description": response}]
+                return techniques
+                    
+        except json.JSONDecodeError as e:
+            logger.exception(f"Error parsing techniques JSON: {str(e)}")
+            return []
+        
+    def _get_techniques_fallback(self, prompt):
+        """Generate fallback techniques when the API is unavailable"""
+        # Extract subject from the prompt
+        import re
+        subject_match = re.search(r"techniques for learning ([^\.]+)", prompt)
+        subject = subject_match.group(1) if subject_match else "this subject"
+        
+        learning_style_match = re.search(r"with a ([^\s]+) learning style", prompt)
+        learning_style = learning_style_match.group(1) if learning_style_match else None
+        
+        # Generic fallback techniques
+        techniques = [
+            {
+                "name": "Active Recall",
+                "description": f"Test yourself on {subject} concepts by writing questions and answering them without looking at your notes. This forces your brain to retrieve information actively rather than passively reviewing.",
+                "benefits": "Strengthens memory pathways and identifies knowledge gaps quickly."
+            },
+            {
+                "name": "Spaced Repetition",
+                "description": f"Review {subject} material at increasing intervals over time. Start with daily reviews, then every few days, then weekly.",
+                "benefits": "Optimizes memorization by reviewing content just before you're likely to forget it."
+            },
+            {
+                "name": "Feynman Technique",
+                "description": f"Explain {subject} concepts in simple language as if teaching someone else. Identify gaps in your understanding when you can't explain something simply.",
+                "benefits": "Ensures deep understanding rather than superficial familiarity with terms."
+            }
+        ]
+        
+        # Add learning style specific technique if provided
+        if learning_style:
+            if learning_style.lower() == "visual":
+                techniques.append({
+                    "name": "Mind Mapping",
+                    "description": f"Create colorful diagrams that connect {subject} concepts visually, using colors, images, and spatial arrangements.",
+                    "benefits": f"Perfect for visual learners studying {subject}, as it creates a spatial memory aid."
+                })
+            elif learning_style.lower() == "auditory":
+                techniques.append({
+                    "name": "Audio Recording and Playback",
+                    "description": f"Record yourself explaining key {subject} concepts and listen to these recordings regularly.",
+                    "benefits": "Leverages your auditory learning preference for better retention."
+                })
+            elif learning_style.lower() in ["kinesthetic", "physical"]:
+                techniques.append({
+                    "name": "Movement-Based Learning",
+                    "description": f"Associate physical movements or locations with {subject} concepts, or study while walking or using a standing desk.",
+                    "benefits": "Engages your kinesthetic learning style for stronger memory formation."
+                })
+            elif learning_style.lower() in ["reading", "writing"]:
+                techniques.append({
+                    "name": "Cornell Note-Taking System",
+                    "description": f"Divide your notes into sections for main ideas, details, and summaries when studying {subject}.",
+                    "benefits": "Perfect for reading/writing learners who process information through text."
+                })
+                
+        return techniques
 
     def recommend_resources(self, subject: str, level: str, resource_type: str = "all") -> Tuple[List[Dict], Optional[str]]:
         """Recommend study resources for a subject with improved error handling"""

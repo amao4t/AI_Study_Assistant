@@ -4,29 +4,55 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const generateForm = document.getElementById('generate-form');
     const documentSelect = document.getElementById('document-select');
-    const questionCountInput = document.getElementById('question-count');
-    const questionCountValue = document.getElementById('question-count-value');
+    const difficultyCheckboxes = document.querySelectorAll('input[name="difficulty[]"]');
     const savedQuestionsContainer = document.getElementById('saved-questions');
     const quizContainer = document.getElementById('quiz-container');
     const quizInfo = document.getElementById('quiz-info');
     const checkAnswersBtn = document.getElementById('check-answers-btn');
     const saveQuestionsBtn = document.getElementById('save-questions-btn');
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    
+    // Add study stats section before the dashboard content
+    const dashboardContent = document.querySelector('.dashboard-content');
+    if (dashboardContent) {
+        const statsSection = document.createElement('div');
+        statsSection.className = 'study-stats';
+        statsSection.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-card-value" id="total-questions-stat">0</div>
+                <div class="stat-card-label">Total Questions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="questions-due-stat">0</div>
+                <div class="stat-card-label">Due for Review</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="success-rate-stat">0%</div>
+                <div class="stat-card-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="documents-with-questions-stat">0</div>
+                <div class="stat-card-label">Documents with Questions</div>
+            </div>
+        `;
+        dashboardContent.insertBefore(statsSection, dashboardContent.firstChild);
+    }
     
     // State
     let documents = [];
     let currentQuestions = [];
     let savedQuestionSets = [];
+    let studyStats = {
+        totalQuestions: 0,
+        questionsDue: 0,
+        successRate: 0,
+        documentsWithQuestions: 0
+    };
     
     // Initialize
     loadDocuments();
     loadSavedQuestions();
-    
-    // Update question count display
-    if (questionCountInput && questionCountValue) {
-        questionCountInput.addEventListener('input', () => {
-            questionCountValue.textContent = questionCountInput.value;
-        });
-    }
+    loadStudyStatistics();
     
     // Event Listeners
     if (generateForm) {
@@ -39,6 +65,65 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (saveQuestionsBtn) {
         saveQuestionsBtn.addEventListener('click', saveCurrentQuestions);
+    }
+    
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearQuizHistory);
+    }
+    
+    // Load study statistics
+    async function loadStudyStatistics() {
+        try {
+            // Get all questions for statistics
+            const response = await fetchAPI('/api/questions/');
+            const questions = response.questions || [];
+            
+            // Calculate statistics
+            studyStats.totalQuestions = questions.length;
+            
+            // Get due questions
+            const dueResponse = await fetchAPI('/api/questions/due-for-review?limit=1000');
+            studyStats.questionsDue = (dueResponse.questions || []).length;
+            
+            // Calculate success rate
+            let totalAnswered = 0;
+            let totalCorrect = 0;
+            
+            questions.forEach(question => {
+                if (question.times_answered > 0) {
+                    totalAnswered += question.times_answered;
+                    totalCorrect += question.times_correct;
+                }
+            });
+            
+            studyStats.successRate = totalAnswered > 0 
+                ? Math.round((totalCorrect / totalAnswered) * 100) 
+                : 0;
+            
+            // Count unique documents with questions
+            const documentIds = new Set();
+            questions.forEach(question => {
+                if (question.document_id) {
+                    documentIds.add(question.document_id);
+                }
+            });
+            
+            studyStats.documentsWithQuestions = documentIds.size;
+            
+            // Update stats display
+            updateStatsDisplay();
+            
+        } catch (error) {
+            console.error('Error loading study statistics:', error);
+        }
+    }
+    
+    // Update stats display
+    function updateStatsDisplay() {
+        document.getElementById('total-questions-stat').textContent = studyStats.totalQuestions;
+        document.getElementById('questions-due-stat').textContent = studyStats.questionsDue;
+        document.getElementById('success-rate-stat').textContent = `${studyStats.successRate}%`;
+        document.getElementById('documents-with-questions-stat').textContent = studyStats.documentsWithQuestions;
     }
     
     // Load documents for the select dropdown
@@ -74,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!savedQuestionsContainer) return;
         
         try {
+            // Get ALL saved questions instead of just those due for review
             const response = await fetchAPI('/api/questions/');
             
             // Group questions by document
@@ -98,6 +184,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             });
             
+            // Sort by most recently created
+            savedQuestionSets.sort((a, b) => {
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+            
             renderSavedQuestions();
         } catch (error) {
             console.error('Error loading saved questions:', error);
@@ -110,7 +201,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!savedQuestionsContainer) return;
         
         if (savedQuestionSets.length === 0) {
-            savedQuestionsContainer.innerHTML = '<div class="empty-state">No saved questions found</div>';
+            savedQuestionsContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <p>No saved questions found</p>
+                </div>
+            `;
             return;
         }
         
@@ -187,7 +285,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Get form data
         const questionType = document.querySelector('input[name="question_type"]:checked').value;
-        const count = parseInt(questionCountInput ? questionCountInput.value : 5);
+        
+        // Get selected difficulty levels
+        const selectedDifficulties = [];
+        document.querySelectorAll('input[name="difficulty[]"]:checked').forEach(checkbox => {
+            selectedDifficulties.push(checkbox.value);
+        });
+        
+        if (selectedDifficulties.length === 0) {
+            showNotification('Please select at least one difficulty level', 'warning');
+            return;
+        }
         
         try {
             // Show loading state
@@ -203,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Send request
+            // Use the same endpoint for backward compatibility
             const response = await fetchAPI(`/api/questions/document/${documentId}`, {
                 method: 'POST',
                 headers: {
@@ -211,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     question_type: questionType,
-                    count: count
+                    difficulty_levels: selectedDifficulties
                 })
             });
             
@@ -288,18 +396,56 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Progress indicator
+        let progress = `
+            <div class="progress-indicator">
+                <div class="progress-bar" style="width: 0%"></div>
+            </div>
+        `;
+        
         // Remove any existing score display
         const existingScore = document.getElementById('quiz-score-display');
         if (existingScore) existingScore.remove();
         
-        let html = '';
+        let html = progress;
         questions.forEach((question, index) => {
-            const questionType = question.question_type || 'qa';
+            const questionType = question.question_type || 'mcq';
+            const difficulty = question.difficulty || 'medium';
+            const difficultyClass = `difficulty-${difficulty.toLowerCase()}`;
+            const questionText = question.question_text || question.question;
             
             html += `
                 <div class="quiz-question ${questionType}" data-id="${question.id || index}">
-                    <h4>${index + 1}. ${question.question}</h4>
+                    <h4>
+                        ${index + 1}. ${questionText}
+                        <span class="question-difficulty ${difficultyClass}">${difficulty}</span>
+                    </h4>
             `;
+            
+            // Add SRS information if available
+            if (question.times_answered > 0) {
+                const successRate = Math.round((question.times_correct / question.times_answered) * 100);
+                const nextReview = question.next_review ? new Date(question.next_review).toLocaleDateString() : 'Not set';
+                
+                html += `
+                    <div class="spaced-repetition-info">
+                        <div class="review-stats">
+                            <div class="review-stat">
+                                <div class="stat-value">${question.times_answered}</div>
+                                <div class="stat-label">Times Answered</div>
+                            </div>
+                            <div class="review-stat">
+                                <div class="stat-value">${successRate}%</div>
+                                <div class="stat-label">Success Rate</div>
+                            </div>
+                            <div class="review-stat">
+                                <div class="stat-value">${nextReview}</div>
+                                <div class="stat-label">Next Review</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
             
             // Render different question types
             if (questionType === 'mcq') {
@@ -348,18 +494,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="text" class="form-control fill-blank-input" placeholder="Your answer...">
                     </div>
                 `;
-                
-                if (question.explanation) {
-                    html += `<div class="explanation" style="display: none;">${question.explanation}</div>`;
-                }
-                
-            } else {
-                // Short answer question (qa)
-                html += `
-                    <div class="short-answer">
-                        <textarea class="short-answer-input" placeholder="Type your answer here..."></textarea>
-                    </div>
-                `;
             }
             
             // Add hidden result div for feedback
@@ -397,13 +531,20 @@ document.addEventListener('DOMContentLoaded', function() {
         let evaluatedCount = 0;
         let pendingEvaluations = [];
         
+        // Disable submit button during evaluation
+        const submitBtn = document.getElementById('submit-quiz-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+        }
+        
         // Process each question
         questions.forEach((question, index) => {
             const questionId = question.dataset.id;
             const resultDiv = question.querySelector('.question-result');
             const questionType = question.classList.contains('mcq') ? 'mcq' : 
                                 question.classList.contains('true_false') ? 'true_false' :
-                                question.classList.contains('fill_in_blank') ? 'fill_in_blank' : 'qa';
+                                question.classList.contains('fill_in_blank') ? 'fill_in_blank' : 'mcq';
             
             // Handle MCQ and True/False (client-side evaluation)
             if (questionType === 'mcq' || questionType === 'true_false') {
@@ -412,6 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultDiv.innerHTML = '<div class="result-warning">No answer selected</div>';
                     resultDiv.style.display = 'block';
                     evaluatedCount++;
+                    updateProgressBar(evaluatedCount, totalQuestions);
                     return;
                 }
                 
@@ -442,6 +584,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 resultDiv.style.display = 'block';
                 evaluatedCount++;
+                updateProgressBar(evaluatedCount, totalQuestions);
+                
+                // Add animation effect for feedback
+                question.classList.add(isCorrect ? 'correct-highlight' : 'incorrect-highlight');
+                setTimeout(() => {
+                    question.classList.remove('correct-highlight', 'incorrect-highlight');
+                }, 1000);
+                
+                // Submit for SRS tracking
+                pendingEvaluations.push(
+                    evaluateAnswer(questionId, selectedOption.value, questionType)
+                );
                 
             } else if (questionType === 'fill_in_blank') {
                 const answerInput = question.querySelector('.fill-blank-input');
@@ -449,134 +603,84 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultDiv.innerHTML = '<div class="result-warning">No answer provided</div>';
                     resultDiv.style.display = 'block';
                     evaluatedCount++;
+                    updateProgressBar(evaluatedCount, totalQuestions);
                     return;
                 }
                 
                 // Get current question data
                 const currentQuestion = currentQuestions[index];
+                const correctAnswer = currentQuestion.answer;
                 const userAnswer = answerInput.value.trim();
                 
-                // Add to pending evaluations
-                pendingEvaluations.push({
-                    questionElement: question,
-                    resultDiv: resultDiv,
-                    questionData: currentQuestion,
-                    userAnswer: userAnswer,
-                    index: index
-                });
+                // Basic verification (case-insensitive match)
+                const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
                 
-            } else {
-                // Short answer (QA) evaluation
-                const answerInput = question.querySelector('.short-answer-input');
-                if (!answerInput || !answerInput.value.trim()) {
-                    resultDiv.innerHTML = '<div class="result-warning">No answer provided</div>';
-                    resultDiv.style.display = 'block';
-                    evaluatedCount++;
-                    return;
+                if (isCorrect) {
+                    resultDiv.innerHTML = '<div class="result-correct"><i class="fas fa-check-circle"></i> Correct!</div>';
+                    correctCount++;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
+                        <div class="correct-answer">Correct answer: ${correctAnswer}</div>
+                    `;
                 }
+                resultDiv.style.display = 'block';
+                evaluatedCount++;
+                updateProgressBar(evaluatedCount, totalQuestions);
                 
-                // Get current question data
-                const currentQuestion = currentQuestions[index];
-                const userAnswer = answerInput.value.trim();
+                // Add animation effect for feedback
+                question.classList.add(isCorrect ? 'correct-highlight' : 'incorrect-highlight');
+                setTimeout(() => {
+                    question.classList.remove('correct-highlight', 'incorrect-highlight');
+                }, 1000);
                 
-                // Add to pending evaluations
-                pendingEvaluations.push({
-                    questionElement: question,
-                    resultDiv: resultDiv,
-                    questionData: currentQuestion,
-                    userAnswer: userAnswer,
-                    index: index
-                });
+                // Submit for SRS tracking
+                pendingEvaluations.push(
+                    evaluateAnswer(questionId, userAnswer, questionType)
+                );
             }
         });
         
-        // Process server-side evaluations
-        if (pendingEvaluations.length > 0) {
-            // Disable submit button while processing
-            const submitBtn = document.getElementById('submit-quiz-btn');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating...';
-                submitBtn.disabled = true;
-            }
+        // Wait for all evaluations to complete
+        Promise.all(pendingEvaluations).then(() => {
+            // Display score
+            displayScore(correctCount, totalQuestions);
             
-            // Process each evaluation sequentially to avoid overwhelming the server
-            for (const evaluation of pendingEvaluations) {
-                try {
-                    const result = await evaluateAnswer(
-                        evaluation.questionData.id, 
-                        evaluation.userAnswer,
-                        evaluation.questionData.question_type
-                    );
-                    
-                    // Process result
-                    if (result) {
-                        if (result.is_correct) {
-                            evaluation.resultDiv.innerHTML = '<div class="result-correct"><i class="fas fa-check-circle"></i> Correct!</div>';
-                            correctCount++;
-                        } else if (result.score && result.score > 0.5) {
-                            // Partial credit for similarity > 0.5
-                            evaluation.resultDiv.innerHTML = `
-                                <div class="result-partial"><i class="fas fa-check-circle"></i> Partially Correct (${Math.round(result.score * 100)}%)</div>
-                                <div class="correct-answer">Correct answer: ${result.correct_answer}</div>
-                            `;
-                            correctCount += result.score;
-                        } else {
-                            evaluation.resultDiv.innerHTML = `
-                                <div class="result-incorrect"><i class="fas fa-times-circle"></i> Incorrect</div>
-                                <div class="correct-answer">Correct answer: ${result.correct_answer}</div>
-                            `;
-                        }
-                        
-                        evaluation.resultDiv.style.display = 'block';
-                        
-                        // Show explanation if available for fill-in-blank
-                        if (evaluation.questionData.question_type === 'fill_in_blank') {
-                            const explanation = evaluation.questionElement.querySelector('.explanation');
-                            if (explanation) {
-                                explanation.style.display = 'block';
-                                explanation.classList.add('mt-2');
-                                explanation.innerHTML = `<strong>Explanation:</strong> ${explanation.innerHTML}`;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error evaluating answer:', error);
-                    evaluation.resultDiv.innerHTML = `
-                        <div class="result-warning">Error evaluating answer</div>
-                    `;
-                    evaluation.resultDiv.style.display = 'block';
-                }
-                
-                evaluatedCount++;
-            }
+            // Reload saved questions to update SRS info
+            loadSavedQuestions();
+            
+            // Reload stats
+            loadStudyStatistics();
             
             // Re-enable submit button
             if (submitBtn) {
+                submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Submit Answers';
-                submitBtn.disabled = true; // Keep disabled after submission
+                
+                // Change button to "Retry Quiz" if already submitted
+                submitBtn.textContent = 'Retry Quiz';
+                submitBtn.addEventListener('click', () => {
+                    // Reload the current questions
+                    renderQuiz(currentQuestions);
+                }, { once: true });
             }
-        }
-        
-        // Only display score when all questions are evaluated
-        if (evaluatedCount === totalQuestions) {
-            // Display final score
-            displayScore(correctCount, totalQuestions);
-            
-            // Disable the submit button
-            const submitBtn = document.getElementById('submit-quiz-btn');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-check-double"></i> Quiz Submitted';
-            }
+        });
+    }
+    
+    // Update progress bar
+    function updateProgressBar(current, total) {
+        const progressBar = document.querySelector('.progress-bar');
+        if (progressBar) {
+            const percent = Math.round((current / total) * 100);
+            progressBar.style.width = `${percent}%`;
         }
     }
     
-    // Evaluate answer with server API
+    // Evaluate a single answer
     async function evaluateAnswer(questionId, userAnswer, questionType) {
-        if (!questionId) return null;
-        
         try {
-            const response = await fetchAPI(`/api/questions/${questionId}/evaluate`, {
+            // Use the new evaluate endpoint
+            const response = await fetchAPI(`/api/questions/evaluate/${questionId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -589,17 +693,37 @@ document.addEventListener('DOMContentLoaded', function() {
             return response;
         } catch (error) {
             console.error('Error evaluating answer:', error);
-            return null;
+            return { 
+                is_correct: false,
+                error: 'Failed to evaluate answer' 
+            };
         }
     }
     
-    // Display the final score
+    // Display the final score with study recommendations
     function displayScore(correct, total) {
         const scorePercentage = Math.round((correct / total) * 100);
-        const scoreMessage = `<div class="quiz-score">
-            <h4>Your Score: ${correct.toFixed(1)}/${total} (${scorePercentage}%)</h4>
-            <p>${getScoreMessage(scorePercentage)}</p>
-        </div>`;
+        
+        // Get study recommendations based on score
+        const recommendations = getStudyRecommendations(scorePercentage, currentQuestions);
+        
+        const scoreMessage = `
+            <div class="quiz-score">
+                <h4>Your Score: ${correct.toFixed(1)}/${total} (${scorePercentage}%)</h4>
+                <p>${getScoreMessage(scorePercentage)}</p>
+            </div>
+            <div class="study-recommendations">
+                <h5>Study Recommendations</h5>
+                <div class="recommendations-list">
+                    ${recommendations.map(rec => `
+                        <div class="recommendation-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>${rec}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
         
         // Create or update score element
         let scoreElement = document.getElementById('quiz-score-display');
@@ -621,6 +745,58 @@ document.addEventListener('DOMContentLoaded', function() {
         return "Keep studying. You'll improve with practice.";
     }
     
+    // Generate study recommendations based on quiz performance
+    function getStudyRecommendations(scorePercentage, questions) {
+        const recommendations = [];
+        
+        // Basic recommendations based on overall score
+        if (scorePercentage < 60) {
+            recommendations.push("Review the entire document thoroughly before attempting the quiz again.");
+            recommendations.push("Try creating flashcards for key concepts in the document.");
+        } else if (scorePercentage < 80) {
+            recommendations.push("Focus on topics where you made mistakes in this quiz.");
+            recommendations.push("Consider using the spaced repetition feature for better retention.");
+        } else {
+            recommendations.push("Great job! Try increasing the difficulty level in your next quiz.");
+            recommendations.push("Challenge yourself with concepts that build upon what you've mastered.");
+        }
+        
+        // Analyze incorrect answers to provide more specific recommendations
+        const incorrectQuestions = [];
+        const difficultyStats = { easy: 0, medium: 0, hard: 0 };
+        
+        // Find questions where answers were checked (look for visible .question-result)
+        const answeredQuestions = document.querySelectorAll('.quiz-question');
+        answeredQuestions.forEach((questionElement, index) => {
+            const resultDiv = questionElement.querySelector('.question-result');
+            if (resultDiv && resultDiv.style.display !== 'none') {
+                // Check if incorrect
+                if (resultDiv.querySelector('.result-incorrect')) {
+                    const question = questions[index];
+                    incorrectQuestions.push(question);
+                    
+                    // Track difficulty stats
+                    const difficulty = question.difficulty || 'medium';
+                    difficultyStats[difficulty]++;
+                }
+            }
+        });
+        
+        // Add recommendations based on difficulty patterns
+        if (difficultyStats.hard > 0 && difficultyStats.hard > difficultyStats.medium) {
+            recommendations.push("You're struggling with difficult concepts. Focus on understanding fundamentals first.");
+        }
+        
+        if (difficultyStats.easy > 0 && incorrectQuestions.length > 0) {
+            recommendations.push("Review basic concepts - you missed some easier questions that are important for understanding.");
+        }
+        
+        // Add recommendation about reviewing soon
+        recommendations.push("For optimal learning, review these questions again in 1-2 days.");
+        
+        return recommendations;
+    }
+    
     // Check answers (original method, now redirects to evaluateQuiz)
     function checkAnswers() {
         evaluateQuiz();
@@ -628,15 +804,42 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Save current questions
     async function saveCurrentQuestions() {
-        // Questions are already saved on the server when generated
-        // This button just provides visual feedback
-        if (saveQuestionsBtn) {
+        try {
+            // Show saving indicator
+            const originalText = saveQuestionsBtn.innerHTML;
+            saveQuestionsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
             saveQuestionsBtn.disabled = true;
+            
+            // Make explicit save call to backend to ensure questions are properly saved
+            // Even though questions are created when generated, this ensures they stay in the database
+            const saveResponse = await fetchAPI('/api/questions/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question_ids: currentQuestions.map(q => q.id)
+                })
+            });
+            
+            if (saveResponse.success) {
+                showNotification('Questions saved successfully', 'success');
+                
+                // Refresh saved questions list
+                await loadSavedQuestions();
+                
+                // Reset button
+                saveQuestionsBtn.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+                saveQuestionsBtn.disabled = true; // Disable after saving
+            } else {
+                throw new Error('Failed to save questions');
+            }
+        } catch (error) {
+            console.error('Error saving questions:', error);
+            showNotification('Failed to save questions: ' + error.message, 'danger');
+            saveQuestionsBtn.innerHTML = originalText;
+            saveQuestionsBtn.disabled = false;
         }
-        showNotification('Questions saved successfully', 'success');
-        
-        // Refresh saved questions list
-        await loadSavedQuestions();
     }
     
     // Helper function to make API calls
@@ -723,5 +926,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 300);
             }
         }, duration);
+    }
+    
+    // Function to clear quiz history
+    async function clearQuizHistory() {
+        if (!confirm('Are you sure you want to clear all quiz history? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetchAPI('/api/questions/clear-history', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                showNotification('Quiz history cleared successfully', 'success');
+                // Reload saved questions (should be empty)
+                savedQuestionSets = [];
+                renderSavedQuestions();
+                // Reload stats
+                loadStudyStatistics();
+            } else {
+                showNotification('Failed to clear quiz history', 'danger');
+            }
+        } catch (error) {
+            console.error('Error clearing quiz history:', error);
+            showNotification('Failed to clear quiz history: ' + error.message, 'danger');
+        }
     }
 });

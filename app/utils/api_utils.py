@@ -1,8 +1,31 @@
 import logging
 import json
 from typing import Dict, Any, Tuple, Optional
+from flask import jsonify
 
 logger = logging.getLogger(__name__)
+
+class APIError(Exception):
+    """Standardized API error class for consistent error handling"""
+    def __init__(self, message: str, code: int = 400, details: Dict = None):
+        self.message = message
+        self.code = code
+        self.details = details or {}
+        super().__init__(self.message)
+    
+    def to_response(self):
+        """Convert error to a Flask response"""
+        response = {
+            'error': self.message,
+            'details': self.details
+        }
+        return jsonify(response), self.code
+    
+    @classmethod
+    def from_exception(cls, exception: Exception, code: int = 500, default_message: str = None):
+        """Create APIError from a standard exception"""
+        message = default_message or str(exception)
+        return cls(message, code, {'exception_type': exception.__class__.__name__})
 
 def get_default_error_message(service_name: str) -> str:
     """Get default error message for service failures"""
@@ -43,3 +66,8 @@ def safe_api_call(func, *args, service_name="API", fallback_func=None, **kwargs)
                 return None, False, f"{error_message} (Fallback also failed)"
         
         return None, False, error_message
+
+def log_api_access(service_name: str, success: bool, details: Dict = None):
+    """Log API access for monitoring and security"""
+    details = details or {}
+    logger.info(f"API access: {service_name}, success: {success}, details: {json.dumps(details)}")

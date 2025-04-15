@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
 from app import db
@@ -15,7 +15,7 @@ class Document(db.Model):
     last_accessed = db.Column(db.DateTime, nullable=True)
     
     # Foreign keys
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     
     # Relationships
     questions = db.relationship('Question', backref='document', lazy='dynamic')
@@ -53,7 +53,7 @@ class DocumentChunk(db.Model):
     embedding_stored = db.Column(db.Boolean, default=False)
     
     # Foreign keys
-    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False, index=True)
     
     def __repr__(self):
         return f'<DocumentChunk {self.id} for Document {self.document_id}>'
@@ -68,9 +68,17 @@ class Question(db.Model):
     answer = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # SRS and difficulty fields
+    difficulty = db.Column(db.String(10), default='medium')  # easy, medium, hard
+    last_answered = db.Column(db.DateTime, nullable=True)
+    times_answered = db.Column(db.Integer, default=0)
+    times_correct = db.Column(db.Integer, default=0)
+    next_review = db.Column(db.DateTime, nullable=True)
+    content_hash = db.Column(db.String(64), nullable=True)  # For caching
+    
     # Foreign keys
-    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     
     def __repr__(self):
         return f'<Question {self.id}>'
@@ -83,7 +91,11 @@ class Question(db.Model):
             'question_type': self.question_type,
             'answer': self.answer,
             'created_at': self.created_at.isoformat(),
-            'document_id': self.document_id
+            'document_id': self.document_id,
+            'difficulty': self.difficulty,
+            'times_answered': self.times_answered,
+            'times_correct': self.times_correct,
+            'next_review': self.next_review.isoformat() if self.next_review else None
         }
         
         # Parse options based on question type
@@ -94,6 +106,31 @@ class Question(db.Model):
                 result['options'] = {}
                 
         return result
+    
+    def update_srs_data(self, correct_answer):
+        """Update SRS data based on answer correctness"""
+        self.last_answered = datetime.utcnow()
+        self.times_answered += 1
+        
+        if correct_answer:
+            self.times_correct += 1
+            
+        # Calculate next review time based on performance
+        success_rate = self.times_correct / max(1, self.times_answered)
+        
+        # Basic SRS algorithm - intervals expand with correct answers
+        if success_rate >= 0.8:
+            # User is doing well, longer interval
+            days_until_review = min(30, self.times_correct)
+        elif success_rate >= 0.5:
+            # User is doing okay, medium interval
+            days_until_review = 3
+        else:
+            # User needs more practice, short interval
+            days_until_review = 1
+            
+        self.next_review = datetime.utcnow() + timedelta(days=days_until_review)
+        db.session.commit()
 
 
 class StudySession(db.Model):
@@ -105,8 +142,8 @@ class StudySession(db.Model):
     notes = db.Column(db.Text, nullable=True)
     
     # Foreign keys
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=True, index=True)
     
     def __repr__(self):
         return f'<StudySession {self.id}>'
@@ -121,3 +158,32 @@ class StudySession(db.Model):
         if self.end_time:
             return (self.end_time - self.start_time).total_seconds() / 60
         return None
+
+
+class StudyPlan(db.Model):
+    """Model for storing study plans"""
+    id = db.Column(db.Integer, primary_key=True)
+    subject = db.Column(db.String(255), nullable=False)
+    overview = db.Column(db.Text, nullable=True)
+    weeks = db.Column(db.Text, nullable=True)
+    techniques = db.Column(db.Text, nullable=True)
+    milestones = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Foreign keys
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    def __repr__(self):
+        return f'<StudyPlan {self.id}: {self.subject}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'subject': self.subject,
+            'overview': self.overview,
+            'weeks': self.weeks,
+            'techniques': self.techniques,
+            'milestones': self.milestones,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

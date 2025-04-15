@@ -1,0 +1,114 @@
+/* Authentication Pages Styles */
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - var(--header-height) - 100px);
+    padding: var(--spacing-xl) 0;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 500px;
+    padding: var(--spacing-xl);
+    background-color: var(--bg-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
+    border: 1px solid var(--border-color);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.auth-header h2 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+    transition: color var(--transition-normal);
+}
+
+.auth-header p {
+    color: var(--text-secondary);
+    transition: color var(--transition-normal);
+}
+
+.auth-form .form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.btn-block {
+    width: 100%;
+    padding: var(--spacing-md);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    transition: border-color var(--transition-normal);
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.form-check-input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--primary-color); /* Style checkboxes with primary color */
+    transition: accent-color var(--transition-fast);
+}
+
+.form-check-label {
+    margin: 0;
+    transition: color var(--transition-normal);
+    color: var(--text-color);
+}
+
+/* Register page specific styles */
+.auth-form #terms + .form-check-label {
+    font-size: 0.9rem;
+}
+
+.auth-form #terms {
+    margin-top: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .auth-card {
+        max-width: 95%;
+        padding: var(--spacing-lg);
+    }
+}
+
+/* Accessibility improvements */
+.auth-form input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(14, 131, 136, 0.3);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .auth-form input:focus {
+    box-shadow: 0 0 0 2px rgba(22, 181, 187, 0.4);
+}
+
+/* Dark mode improvements */
+[data-theme="dark"] .auth-card {
+    border-color: var(--border-color);
+}
+
+/* Support for print */
+@media print {
+    .auth-container {
+        display: none !important;
+    }
+} 

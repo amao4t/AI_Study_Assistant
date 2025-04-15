@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 
 from app import db
-from app.models.document import StudySession
+from app.models.document import StudySession, StudyPlan
 from app.services.study_assistant import StudyAssistant
+from datetime import datetime
+from sqlalchemy.sql import text
 
 study_bp = Blueprint('study', __name__, url_prefix='/api/study')
 
@@ -222,3 +224,191 @@ def get_study_sessions():
             'notes': session.notes
         } for session in sessions]
     }), 200
+
+@study_bp.route('/sessions/<int:session_id>', methods=['DELETE'])
+@login_required
+def delete_study_session(session_id):
+    """Delete a specific study session"""
+    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
+    
+    if not session:
+        return jsonify({'error': 'Study session not found'}), 404
+    
+    try:
+        db.session.delete(session)
+        db.session.commit()
+        return jsonify({'message': 'Study session deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@study_bp.route('/sessions/clear', methods=['DELETE'])
+@login_required
+def clear_all_sessions():
+    """Delete all study sessions for the current user"""
+    try:
+        StudySession.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        return jsonify({'message': 'All study sessions cleared successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@study_bp.route('/sessions/<int:session_id>/pause', methods=['POST'])
+@login_required
+def pause_study_session(session_id):
+    """Pause a study session"""
+    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
+    
+    if not session:
+        return jsonify({'error': 'Study session not found'}), 404
+    
+    if session.end_time:
+        return jsonify({'error': 'Study session already ended'}), 400
+    
+    try:
+        # For now, just mark it as paused (you might need to add a status field to your model)
+        # This is a temporary solution - ideally you'd add a 'status' field to StudySession
+        session.notes = (session.notes or '') + '\n[PAUSED]'
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Study session paused',
+            'session_id': session.id
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@study_bp.route('/sessions/<int:session_id>/resume', methods=['POST'])
+@login_required
+def resume_study_session(session_id):
+    """Resume a paused study session"""
+    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
+    
+    if not session:
+        return jsonify({'error': 'Study session not found'}), 404
+    
+    if session.end_time:
+        return jsonify({'error': 'Study session already ended'}), 400
+    
+    try:
+        # Remove the paused marker
+        if session.notes and '[PAUSED]' in session.notes:
+            session.notes = session.notes.replace('\n[PAUSED]', '')
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Study session resumed',
+            'session_id': session.id
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# ---- Study Plans API endpoints ----
+
+@study_bp.route('/plans', methods=['GET'])
+@login_required
+def get_study_plans():
+    """Get all saved study plans for current user"""
+    try:
+        plans = StudyPlan.query.filter_by(user_id=current_user.id).order_by(StudyPlan.created_at.desc()).all()
+        
+        return jsonify({
+            'plans': [plan.to_dict() for plan in plans]
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching study plans: {str(e)}")
+        return jsonify({'error': 'Failed to fetch study plans', 'details': str(e)}), 500
+
+@study_bp.route('/plans', methods=['POST'])
+@login_required
+def save_study_plan():
+    """Save a study plan"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # Get parameters
+    subject = data.get('subject')
+    overview = data.get('overview', '')
+    weeks = data.get('weeks', '')
+    techniques = data.get('techniques', '')
+    milestones = data.get('milestones', '')
+    
+    if not subject:
+        return jsonify({'error': 'Missing required parameter (subject)'}), 400
+    
+    try:
+        # Create a new study plan object
+        study_plan = StudyPlan(
+            user_id=current_user.id,
+            subject=subject,
+            overview=overview,
+            weeks=weeks,
+            techniques=techniques,
+            milestones=milestones
+        )
+        
+        db.session.add(study_plan)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Study plan saved successfully',
+            'plan_id': study_plan.id,
+            'created_at': study_plan.created_at.isoformat()
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving study plan: {str(e)}")
+        return jsonify({'error': 'Failed to save study plan', 'details': str(e)}), 500
+
+@study_bp.route('/plans/<int:plan_id>', methods=['GET'])
+@login_required
+def get_study_plan(plan_id):
+    """Get a specific study plan"""
+    try:
+        plan = StudyPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
+        
+        if not plan:
+            return jsonify({'error': 'Study plan not found'}), 404
+        
+        return jsonify(plan.to_dict()), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching study plan: {str(e)}")
+        return jsonify({'error': 'Failed to fetch study plan', 'details': str(e)}), 500
+
+@study_bp.route('/plans/<int:plan_id>', methods=['DELETE'])
+@login_required
+def delete_study_plan(plan_id):
+    """Delete a specific study plan"""
+    try:
+        plan = StudyPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
+        
+        if not plan:
+            return jsonify({'error': 'Study plan not found or not authorized to delete'}), 404
+        
+        db.session.delete(plan)
+        db.session.commit()
+        return jsonify({'message': 'Study plan deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting study plan: {str(e)}")
+        return jsonify({'error': 'Failed to delete study plan', 'details': str(e)}), 500
+
+@study_bp.route('/plans/clear', methods=['DELETE'])
+@login_required
+def clear_all_plans():
+    """Delete all study plans for the current user"""
+    try:
+        count = StudyPlan.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        return jsonify({'message': 'All study plans cleared successfully', 'count': count}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error clearing study plans: {str(e)}")
+        return jsonify({'error': 'Failed to clear study plans', 'details': str(e)}), 500

@@ -3,11 +3,14 @@ import re
 import requests
 import logging
 import random
+import hashlib
 from typing import Dict, List, Tuple, Optional, Any
 from collections import Counter
+import time
 
 from app import db
 from app.models.document import Document, Question, DocumentChunk
+from app.utils.api_utils import log_api_access
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -23,7 +26,9 @@ class QuestionGenerator:
             "anthropic-version": "2023-06-01",
             "content-type": "application/json"
         }
-        logger.info("Initialized QuestionGenerator with Claude API")
+        # Cache for previously generated questions to avoid duplicates
+        self.question_cache = {}
+        logger.info("Initialized QuestionGenerator with Claude API and caching")
     
     def _call_claude_api(self, prompt, max_tokens=1000, temperature=0.7, model="claude-3-opus-20240229"):
         """Make an API call to Claude"""
@@ -39,17 +44,57 @@ class QuestionGenerator:
         try:
             response = requests.post(self.claude_api_url, json=payload, headers=self.headers)
             response.raise_for_status()
+            log_api_access("claude_question_api", True)
             return response.json()
         except Exception as e:
             logger.exception(f"Error calling Claude API: {str(e)}")
+            log_api_access("claude_question_api", False, {"error": str(e)})
             if hasattr(response, 'text'):
                 logger.error(f"API response: {response.text}")
             raise
+    
+    def _get_content_hash(self, text):
+        """Generate a hash for text content to use for caching"""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
+    
+    def _determine_difficulty(self, question_text, answer):
+        """Determine the difficulty level of a question based on its content"""
+        # Simple heuristics for difficulty estimation
+        question_length = len(question_text)
+        answer_length = len(answer)
+        
+        # Check for complex terms or concepts
+        complex_terms = [
+            'analyze', 'evaluate', 'explain', 'compare', 'contrast', 'critique',
+            'synthesize', 'theorize', 'hypothesize', 'investigate', 'differentiate'
+        ]
+        
+        # Count complexity indicators
+        complexity_score = 0
+        for term in complex_terms:
+            if term in question_text.lower():
+                complexity_score += 1
+        
+        # Determine difficulty based on multiple factors
+        if complexity_score >= 2 or (question_length > 100 and answer_length > 150):
+            return 'hard'
+        elif complexity_score >= 1 or (question_length > 70 and answer_length > 100):
+            return 'medium'
+        else:
+            return 'easy'
     
     def generate_mcq(self, context: str) -> Dict:
         """Generate a multiple-choice question from context text with improved prompt"""
         try:
             logger.info(f"Generating MCQ from context of length: {len(context)}")
+            
+            # Generate a hash for the context
+            context_hash = self._get_content_hash(context)
+            
+            # Check cache first
+            if context_hash in self.question_cache and 'mcq' in self.question_cache[context_hash]:
+                logger.info("Using cached MCQ")
+                return self.question_cache[context_hash]['mcq']
             
             # Limit context length to prevent API issues
             if len(context) > 2000:
@@ -68,6 +113,8 @@ IMPORTANT GUIDELINES:
 6. Focus on testing understanding rather than mere recall
 7. Ensure the question tests important concepts, not trivial details
 8. The question should be challenging but fair
+9. Avoid questions that can be answered without understanding the context
+10. Make sure the question requires critical thinking
 
 Follow this exact format in your response:
 
@@ -93,6 +140,17 @@ Context:
             logger.info("Successfully generated MCQ")
             
             parsed = self._parse_mcq_response(result)
+            
+            # Determine difficulty and add to the parsed result
+            if parsed and 'question' in parsed and 'answer' in parsed:
+                difficulty = self._determine_difficulty(parsed['question'], parsed['answer'])
+                parsed['difficulty'] = difficulty
+            
+            # Cache the result
+            if context_hash not in self.question_cache:
+                self.question_cache[context_hash] = {}
+            self.question_cache[context_hash]['mcq'] = parsed
+            
             return parsed
         
         except Exception as e:
@@ -377,136 +435,221 @@ Context:
     
     def generate_questions_for_document(self, document_id: int, user_id: int, 
                                       question_type: str = 'mcq', 
-                                      count: int = 5) -> Tuple[List[Dict], Optional[str]]:
-        """Generate diverse questions from a document with improved chunk selection"""
-        document = Document.query.filter_by(id=document_id, user_id=user_id).first()
+                                      count: int = None,
+                                      difficulty_levels: List[str] = None) -> Tuple[List[Dict], Optional[str]]:
+        """Generate questions for a document with improved caching and variety"""
+        document = Document.query.filter_by(id=document_id).first()
         if not document:
-            return [], "Document not found or you don't have permission"
+            return [], "Document not found"
         
-        # Get document chunks
-        chunks = DocumentChunk.query.filter_by(document_id=document_id).all()
-        if not chunks:
-            return [], "No text chunks available for this document"
+        # Check if user is authorized to access this document
+        if document.user_id != user_id:
+            return [], "Unauthorized access to document"
         
-        # Limit number of chunks to process but increase max
-        max_chunks = min(30, len(chunks))  # Increased from 20 to 30 chunks
-        logger.info(f"Using {max_chunks} chunks out of {len(chunks)} for question generation")
+        try:
+            # Set default difficulty levels if not provided
+            if difficulty_levels is None:
+                difficulty_levels = ['easy', 'medium', 'hard']
+            
+            # Determine number of questions based on document size if count not specified
+            if count is None:
+                # Get document chunks to determine length
+                chunks = DocumentChunk.query.filter_by(document_id=document_id).all()
+                total_text_length = sum(len(chunk.chunk_text) for chunk in chunks) if chunks else 0
+                
+                # Scale count based on document length (between 10-30 questions)
+                if total_text_length > 10000:  # Large document
+                    count = 30
+                elif total_text_length > 5000:  # Medium document
+                    count = 20
+                else:  # Small document
+                    count = 10
+            
+            logger.info(f"Generating {count} questions of type {question_type} with difficulties {difficulty_levels} for document {document_id}")
+            
+            # Get document chunks
+            chunks = DocumentChunk.query.filter_by(document_id=document_id).all()
+            if not chunks:
+                # Try to extract text directly from document if no chunks found
+                logger.info(f"No chunks found for document {document_id}, extracting text directly")
+                from app.services.document_processor import DocumentProcessor
+                
+                # Get document processor from service container
+                from flask import current_app
+                document_processor = current_app.services.get('document_processor')
+                
+                if document_processor:
+                    # Extract text and create a single chunk for the entire document
+                    text = document_processor._extract_document_text(document)
+                    if text and len(text.strip()) > 0:
+                        # Create a single chunk for the whole document if text extraction was successful
+                        chunk = DocumentChunk(
+                            chunk_text=text,
+                            chunk_index=0,
+                            document_id=document_id
+                        )
+                        db.session.add(chunk)
+                        db.session.commit()
+                        chunks = [chunk]
+                    else:
+                        return [], "Failed to extract text from document"
+                else:
+                    return [], "No document chunks found and document processor not available"
+            
+            # Fallback if still no chunks
+            if not chunks:
+                return [], "Failed to extract text or create chunks for this document"
+            
+            # Improved chunk selection for diverse questions
+            selected_chunks = self._select_diverse_chunks(chunks, count, max_chunks=10)
+            
+            # Balance question types if mixed
+            questions = []
+            
+            if question_type == 'mixed':
+                # Distribute among different question types
+                types = ['mcq', 'qa', 'true_false', 'fill_in_blank']
+                type_counts = {}
+                
+                # Distribute evenly
+                base_count = count // len(types)
+                remainder = count % len(types)
+                
+                for t in types:
+                    type_counts[t] = base_count
+                    if remainder > 0:
+                        type_counts[t] += 1
+                        remainder -= 1
+                
+                # Generate each type with balanced difficulties
+                for qtype, qcount in type_counts.items():
+                    if qcount <= 0:
+                        continue
+                    
+                    # Distribute questions across difficulty levels
+                    difficulty_counts = self._distribute_by_difficulty(qcount, difficulty_levels)    
+                    for difficulty, diff_count in difficulty_counts.items():
+                        batch = self._generate_questions_batch(selected_chunks, user_id, qtype, diff_count, difficulty)
+                        questions.extend(batch)
+            else:
+                # Generate single type with balanced difficulties
+                difficulty_counts = self._distribute_by_difficulty(count, difficulty_levels)
+                for difficulty, diff_count in difficulty_counts.items():
+                    batch = self._generate_questions_batch(selected_chunks, user_id, question_type, diff_count, difficulty)
+                    questions.extend(batch)
+            
+            # Check if any questions were generated
+            if not questions:
+                return [], "Failed to generate any questions from the document content"
+            
+            # Return generated questions
+            return [q.to_dict() for q in questions], None
+            
+        except Exception as e:
+            logger.exception(f"Error generating questions: {str(e)}")
+            return [], str(e)
+    
+    def _distribute_by_difficulty(self, total_count: int, difficulty_levels: List[str]) -> Dict[str, int]:
+        """Distribute question counts across specified difficulty levels"""
+        if not difficulty_levels:
+            return {"medium": total_count}
+            
+        result = {}
+        base_count = total_count // len(difficulty_levels)
+        remainder = total_count % len(difficulty_levels)
         
-        # Instead of completely random shuffle, select chunks from different parts of the document
-        selected_chunks = self._select_diverse_chunks(chunks, count * 2, max_chunks)
-        
+        for level in difficulty_levels:
+            result[level] = base_count
+            if remainder > 0:
+                result[level] += 1
+                remainder -= 1
+                
+        return result
+    
+    def _generate_questions_batch(self, chunks, user_id, question_type, count, target_difficulty=None):
+        """Generate a batch of questions of a specific type and difficulty with caching"""
         questions = []
-        stored_questions = []
-        question_content_hashes = set()  # To avoid duplicate question content
-        max_attempts = min(count * 3, 15)  # Increased maximum attempts from 10 to 15
-        attempts = 0
+        chunks_used = set()
         
-        for chunk in selected_chunks:
-            if len(questions) >= count or attempts >= max_attempts:
+        # Try using each chunk
+        for chunk in chunks:
+            # Skip if we've generated enough questions
+            if len(questions) >= count:
                 break
                 
-            attempts += 1
+            # Generate a question based on type
+            question_data = None
             context = chunk.chunk_text
-            if not context or len(context.strip()) < 50:  # Skip very short chunks
-                continue
+            context_hash = self._get_content_hash(context)
             
-            try:
-                # Select question type based on question_type parameter
-                if question_type.lower() == 'mcq':
+            # Check if we've already used this content hash
+            if context_hash in chunks_used:
+                continue
+                
+            # Check if cached
+            cached = False
+            if context_hash in self.question_cache and question_type in self.question_cache[context_hash]:
+                question_data = self.question_cache[context_hash][question_type]
+                cached = True
+                logger.info(f"Using cached {question_type} question")
+            
+            # Generate if not cached
+            if not cached:
+                if question_type == 'mcq':
                     question_data = self.generate_mcq(context)
-                elif question_type.lower() == 'qa':
+                elif question_type == 'qa':
                     question_data = self.generate_qa(context)
-                elif question_type.lower() == 'true_false':
+                elif question_type == 'true_false':
                     question_data = self.generate_true_false(context)
-                elif question_type.lower() == 'fill_in_blank':
+                elif question_type == 'fill_in_blank':
                     question_data = self.generate_fill_in_blank(context)
-                else:
-                    # If type not specified, randomly select a type to increase diversity
-                    random_type = random.choice(['mcq', 'qa', 'true_false', 'fill_in_blank'])
-                    if random_type == 'mcq':
-                        question_data = self.generate_mcq(context)
-                    elif random_type == 'qa':
-                        question_data = self.generate_qa(context)
-                    elif random_type == 'true_false':
-                        question_data = self.generate_true_false(context)
-                    else:
-                        question_data = self.generate_fill_in_blank(context)
+            
+            # Skip if generation failed
+            if not question_data or 'question' not in question_data:
+                continue
                 
-                # Check required fields
-                if 'question' not in question_data or 'answer' not in question_data:
-                    continue
-                
-                # Check for duplicate content
-                question_hash = hash(question_data['question'].lower())
-                if question_hash in question_content_hashes:
-                    continue
-                question_content_hashes.add(question_hash)
-                
-                # Required fields
-                question_text = question_data['question']
-                answer = question_data['answer']
-                actual_question_type = question_data.get('question_type', question_type)
+            # Skip if difficulty doesn't match target (if specified)
+            question_difficulty = question_data.get('difficulty', 'medium')
+            if target_difficulty and question_difficulty != target_difficulty:
+                # Try to adjust difficulty if possible
+                if 'question' in question_data and 'answer' in question_data:
+                    question_data['difficulty'] = target_difficulty
+            
+            # Create question object
+            try:
+                # Create options JSON for appropriate question types
                 options_json = None
-                
-                # Format based on question type
-                if actual_question_type == 'mcq':
-                    if 'options' not in question_data:
-                        continue
+                if question_type == 'mcq' and 'options' in question_data:
                     options_json = json.dumps(question_data['options'])
-                    answer_text = question_data['options'].get(answer, answer)
-                elif actual_question_type == 'true_false':
-                    options_json = json.dumps({'True': 'True', 'False': 'False'})
-                    answer_text = answer
+                elif question_type == 'fill_in_blank' and 'options' in question_data:
+                    options_json = json.dumps(question_data['options'])
                 
-                # Create and save question
+                # Create the question with specified difficulty
                 question = Question(
-                    question_text=question_text,
-                    question_type=actual_question_type,
+                    question_text=question_data['question'],
+                    question_type=question_type,
                     options=options_json,
-                    answer=answer,
-                    document_id=document_id,
-                    user_id=user_id
+                    answer=question_data.get('answer', ''),
+                    document_id=chunk.document_id,
+                    user_id=user_id,
+                    difficulty=question_data.get('difficulty', 'medium') if not target_difficulty else target_difficulty,
+                    content_hash=context_hash
                 )
                 
                 db.session.add(question)
-                stored_questions.append(question)
-                
-                # Format question for client response
-                question_response = {
-                    'question': question_text,
-                    'answer': answer,
-                    'question_type': actual_question_type
-                }
-                
-                # Add fields based on question type
-                if actual_question_type == 'mcq':
-                    question_response['options'] = question_data['options']
-                    question_response['answer_text'] = answer_text
-                elif actual_question_type == 'true_false':
-                    question_response['options'] = {'True': 'True', 'False': 'False'}
-                elif actual_question_type == 'fill_in_blank' and 'explanation' in question_data:
-                    question_response['explanation'] = question_data['explanation']
-                
-                questions.append(question_response)
-            
-            except Exception as e:
-                logger.exception(f"Error generating question from chunk: {str(e)}")
-                continue
-        
-        # Commit all questions to database
-        if stored_questions:
-            try:
                 db.session.commit()
-                logger.info(f"Saved {len(stored_questions)} questions to database")
+                
+                questions.append(question)
+                chunks_used.add(context_hash)
+                
+                # Add delay to avoid rate limiting
+                time.sleep(0.5)
+                
             except Exception as e:
-                logger.exception(f"Error saving questions: {str(e)}")
+                logger.exception(f"Error saving question: {str(e)}")
                 db.session.rollback()
-                return [], f"Error saving questions: {str(e)}"
         
-        if not questions:
-            return [], "Could not generate any valid questions from the document"
-        
-        return questions[:count], None
+        return questions
     
     def _select_diverse_chunks(self, chunks: List[DocumentChunk], desired_count: int, max_chunks: int) -> List[DocumentChunk]:
         """Select diverse chunks from document for question generation"""

@@ -55,7 +55,10 @@
                 <!-- Text History -->
                 <div class="card mt-4">
                     <div class="card-header">
-                        <h3>History</h3>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3>History</h3>
+                            <button id="clear-history-btn" class="btn btn-sm btn-outline-danger">Clear All</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div id="text-history" class="text-history">
@@ -129,6 +132,13 @@
                                 </button>
                             </div>
                             <div id="result-text" class="result-text"></div>
+                            
+                            <!-- Corrections Panel (Only visible with correction tool) -->
+                            <div id="corrections-panel" class="corrections-panel" style="display: none;">
+                                <h5>Corrections Made</h5>
+                                <div class="corrections-info">Click on a correction to highlight it in the text</div>
+                                <div id="corrections-list" class="corrections-list"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -139,217 +149,7 @@
 {% endblock %}
 
 {% block custom_css %}
-<style>
-    .dashboard-container {
-        padding: var(--spacing-lg) 0;
-    }
-    
-    .dashboard-header {
-        margin-bottom: var(--spacing-xl);
-    }
-    
-    .dashboard-header h1 {
-        color: var(--primary-color);
-        margin-bottom: var(--spacing-xs);
-    }
-    
-    .dashboard-header p {
-        color: var(--text-secondary);
-        font-size: var(--font-size-lg);
-    }
-    
-    .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-lg);
-    }
-    
-    .col-md-4 {
-        flex: 1;
-        min-width: 300px;
-    }
-    
-    .col-md-8 {
-        flex: 2;
-        min-width: 400px;
-    }
-    
-    .text-area {
-        min-height: 200px;
-        resize: vertical;
-    }
-    
-    .tools-list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
-    
-    .tool-item {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-secondary);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-    }
-    
-    .tool-item:hover {
-        background-color: var(--primary-light);
-    }
-    
-    .tool-item.active {
-        background-color: var(--primary-light);
-        border-left: 3px solid var(--primary-color);
-    }
-    
-    .tool-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        background-color: var(--bg-color);
-        color: var(--primary-color);
-        border-radius: var(--radius-full);
-        font-size: var(--font-size-lg);
-    }
-    
-    .tool-info {
-        flex: 1;
-    }
-    
-    .tool-info h4 {
-        margin-bottom: var(--spacing-xs);
-        color: var(--text-color);
-    }
-    
-    .tool-info p {
-        margin: 0;
-        font-size: var(--font-size-sm);
-        color: var(--text-secondary);
-    }
-    
-    .option-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-sm);
-    }
-    
-    .option-button {
-        padding: var(--spacing-xs) var(--spacing-md);
-        background-color: var(--bg-secondary);
-        border: none;
-        border-radius: var(--radius-md);
-        color: var(--text-color);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-    }
-    
-    .option-button:hover {
-        background-color: var(--primary-light);
-    }
-    
-    .option-button.active {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    
-    .result-container {
-        margin-top: var(--spacing-xl);
-        padding-top: var(--spacing-lg);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .result-actions {
-        display: flex;
-        gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .result-text {
-        padding: var(--spacing-md);
-        background-color: var(--bg-secondary);
-        border-radius: var(--radius-md);
-        white-space: pre-wrap;
-        line-height: 1.6;
-    }
-    
-    .text-history {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: var(--spacing-xl);
-        color: var(--text-secondary);
-        text-align: center;
-    }
-    
-    .empty-state i {
-        font-size: 2rem;
-        margin-bottom: var(--spacing-md);
-        opacity: 0.5;
-    }
-    
-    .history-item {
-        padding: var(--spacing-md);
-        margin-bottom: var(--spacing-sm);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-secondary);
-        cursor: pointer;
-    }
-    
-    .history-item:hover {
-        background-color: var(--primary-light);
-    }
-    
-    .history-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-xs);
-    }
-    
-    .history-title {
-        font-weight: 600;
-        color: var(--text-color);
-    }
-    
-    .history-tool {
-        font-size: var(--font-size-xs);
-        color: var(--primary-color);
-    }
-    
-    .history-preview {
-        font-size: var(--font-size-sm);
-        color: var(--text-secondary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: var(--spacing-xs) var(--spacing-sm);
-        border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
-        font-weight: 600;
-    }
-    
-    .bg-primary {
-        background-color: var(--primary-color);
-        color: white;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/text-dashboard.css') }}">
 {% endblock %}
 
 {% block custom_js %}

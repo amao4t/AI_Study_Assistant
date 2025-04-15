@@ -102,17 +102,17 @@ SUMMARY:
             logger.exception(f"Error summarizing text: {str(e)}")
             return "", str(e)
     
-    def correct_text(self, text: str) -> Tuple[str, Optional[str]]:
+    def correct_text(self, text: str) -> Tuple[str, Optional[str], Optional[list]]:
         """Correct grammar and improve clarity of text
         
         Args:
             text: Text to correct
             
         Returns:
-            Tuple of (corrected_text, error)
+            Tuple of (corrected_text, error, corrections)
         """
         if not text or len(text.strip()) < 5:
-            return "", "Text is too short to correct"
+            return "", "Text is too short to correct", None
         
         try:
             # Limit text length to avoid API issues
@@ -124,7 +124,27 @@ SUMMARY:
             
             prompt = f"""
 Correct the grammar, spelling, and improve clarity of the following text while preserving the original meaning.
-Do not add any explanations or comments - only provide the corrected text.
+
+Your response MUST be formatted in two distinct sections separated by the marker "===CORRECTIONS_JSON===":
+
+SECTION 1: The fully corrected text only, with no explanations or comments. This should be exactly the original text but with corrections applied.
+
+SECTION 2: After the marker, provide a JSON array of corrections with this exact format:
+[
+  {{
+    "original": "the exact original text that was changed",
+    "corrected": "the exact correction that replaced it",
+    "explanation": "brief explanation of why this correction was made"
+  }}
+]
+
+Important guidelines:
+- Each "original" should be an exact string from the original text
+- Each "corrected" should be an exact string from your corrected text
+- Make sure the "corrected" strings actually appear in your corrected text
+- Don't include overlapping corrections 
+- Limit to the most important corrections (maximum 10)
+- Don't create large paragraph-sized corrections
 
 ORIGINAL TEXT:
 {text}
@@ -136,15 +156,45 @@ CORRECTED TEXT:
             
             if 'content' not in response or len(response['content']) == 0:
                 logger.error("Invalid response from Claude API")
-                return "", "Failed to correct text"
+                return "", "Failed to correct text", None
             
-            corrected_text = response['content'][0]['text'].strip()
+            response_text = response['content'][0]['text'].strip()
+            
+            # Extract corrected text and list of corrections using the marker
+            parts = response_text.split("===CORRECTIONS_JSON===", 1)
+            corrected_text = parts[0].strip()
+            
+            corrections = []
+            if len(parts) > 1:
+                # Try to extract JSON list of corrections
+                try:
+                    import json
+                    import re
+                    
+                    # Find JSON array in the text
+                    json_match = re.search(r'\[\s*\{.*\}\s*\]', parts[1], re.DOTALL)
+                    if json_match:
+                        corrections_text = json_match.group(0)
+                        corrections = json.loads(corrections_text)
+                        
+                        # Additional verification - make sure corrections actually exist in text
+                        verified_corrections = []
+                        for correction in corrections:
+                            if correction['corrected'] in corrected_text:
+                                verified_corrections.append(correction)
+                            else:
+                                logger.warning(f"Correction not found in text: {correction}")
+                        
+                        corrections = verified_corrections
+                except Exception as e:
+                    logger.warning(f"Failed to parse corrections list: {e}")
+            
             logger.info("Successfully corrected text")
-            return corrected_text, None
+            return corrected_text, None, corrections
         
         except Exception as e:
             logger.exception(f"Error correcting text: {str(e)}")
-            return "", str(e)
+            return "", str(e), None
     
     def rephrase_text(self, text: str, style: str = 'academic') -> Tuple[str, Optional[str]]:
         """Rephrase text in different style

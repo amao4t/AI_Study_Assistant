@@ -5,6 +5,8 @@ import pickle
 import os
 import logging
 import time
+import hashlib
+from functools import lru_cache
 from typing import List, Dict, Tuple, Optional
 
 from app import db
@@ -16,7 +18,7 @@ logger = logging.getLogger(__name__)
 class EmbeddingsService:
     """Service for managing document embeddings and semantic search using Claude API"""
     
-    def __init__(self, api_key, index_directory='app/static/indices'):
+    def __init__(self, api_key, index_directory='app/static/indices', cache_size=100):
         self.api_key = api_key
         self.index_directory = index_directory
         self.embeddings_api_url = "https://api.anthropic.com/v1/embeddings"
@@ -30,66 +32,156 @@ class EmbeddingsService:
         if not os.path.exists(self.index_directory):
             os.makedirs(self.index_directory)
             
-        logger.info("Initialized EmbeddingsService with Claude API")
+        # Initialize embedding cache
+        self._text_hash_cache = {}
+        self.get_embedding_cached = lru_cache(maxsize=cache_size)(self._get_single_embedding)
+        
+        logger.info(f"Initialized EmbeddingsService with Claude API and cache size {cache_size}")
+    
+    def _text_to_hash(self, text: str) -> str:
+        """Convert text to a hash for caching"""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
+        
+    def _get_single_embedding(self, text_hash: str) -> np.ndarray:
+        """Get embedding for a single text by hash (for caching)"""
+        if text_hash not in self._text_hash_cache:
+            return np.array([])
+        
+        text = self._text_hash_cache[text_hash]
+        try:
+            # Claude Embeddings API call for a single text
+            payload = {
+                "model": "claude-3-opus-20240229", 
+                "input": [text],
+                "encoding_format": "float"
+            }
+            
+            response = requests.post(
+                self.embeddings_api_url, 
+                headers=self.headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            # Extract embedding from response
+            result = response.json()
+            if 'data' not in result or not result['data']:
+                logger.error(f"Invalid response format: {result}")
+                return np.array([])
+                
+            return np.array(result['data'][0]['embedding'])
+            
+        except Exception as e:
+            logger.exception(f"Error getting single embedding: {str(e)}")
+            return np.array([])
     
     def get_embeddings(self, texts: List[str]) -> np.ndarray:
-        """Get embeddings for a list of texts using Claude API"""
+        """Get embeddings for a list of texts using Claude API with caching"""
         if not texts:
             return np.array([])
             
         try:
-            # Process in smaller batches to avoid API limitations
-            batch_size = 5  # Small batch size
-            all_embeddings = []
+            # Process each text with cache
+            result_embeddings = []
+            uncached_texts = []
+            uncached_indices = []
             
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i+batch_size]
-                logger.info(f"Getting embeddings for batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+            # Check cache first
+            for i, text in enumerate(texts):
+                text_hash = self._text_to_hash(text)
+                self._text_hash_cache[text_hash] = text  # Store mapping of hash to text
                 
-                # Add retry logic
-                max_retries = 3
-                for attempt in range(max_retries):
-                    try:
-                        # Claude Embeddings API call
-                        payload = {
-                            "model": "claude-3-opus-20240229", 
-                            "input": batch,
-                            "encoding_format": "float"
-                        }
-                        
-                        response = requests.post(
-                            self.embeddings_api_url, 
-                            headers=self.headers,
-                            json=payload
-                        )
-                        response.raise_for_status()
-                        
-                        # Extract embeddings from response
-                        result = response.json()
-                        if 'data' not in result:
-                            logger.error(f"Invalid response format: {result}")
-                            raise ValueError("Invalid API response format")
-                            
-                        batch_embeddings = np.array([item['embedding'] for item in result['data']])
-                        all_embeddings.append(batch_embeddings)
-                        
-                        # Add delay between API calls
-                        if i + batch_size < len(texts):
-                            time.sleep(1)  # 1 second delay between batches
-                            
-                        break  # Success, exit retry loop
-                        
-                    except Exception as e:
-                        logger.warning(f"Embedding attempt {attempt+1} failed: {str(e)}")
-                        if attempt < max_retries - 1:
-                            time.sleep(2)  # Wait before retry
-                        else:
-                            logger.error(f"Failed to embed batch after {max_retries} attempts")
-                            raise
+                cached_embedding = self.get_embedding_cached(text_hash)
+                if cached_embedding.size > 0:
+                    result_embeddings.append((i, cached_embedding))
+                    logger.debug(f"Cache hit for text at index {i}")
+                else:
+                    uncached_texts.append(text)
+                    uncached_indices.append(i)
+                    logger.debug(f"Cache miss for text at index {i}")
+            
+            # For uncached texts, process in batches
+            if uncached_texts:
+                logger.info(f"Processing {len(uncached_texts)} uncached texts in batches")
+                batch_size = 5  # Small batch size
+                batch_embeddings = []
                 
-            if all_embeddings:
-                return np.vstack(all_embeddings)
-            return np.array([])
+                for i in range(0, len(uncached_texts), batch_size):
+                    batch = uncached_texts[i:i+batch_size]
+                    logger.info(f"Getting embeddings for batch {i//batch_size + 1}/{(len(uncached_texts)-1)//batch_size + 1}")
+                    
+                    # Add retry logic
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            # Claude Embeddings API call
+                            payload = {
+                                "model": "claude-3-opus-20240229", 
+                                "input": batch,
+                                "encoding_format": "float"
+                            }
+                            
+                            response = requests.post(
+                                self.embeddings_api_url, 
+                                headers=self.headers,
+                                json=payload
+                            )
+                            response.raise_for_status()
+                            
+                            # Extract embeddings from response
+                            result = response.json()
+                            if 'data' not in result:
+                                logger.error(f"Invalid response format: {result}")
+                                raise ValueError("Invalid API response format")
+                                
+                            # Add embeddings to batch results
+                            embeddings = [np.array(item['embedding']) for item in result['data']]
+                            batch_embeddings.extend(embeddings)
+                            
+                            # Update cache for these embeddings
+                            for j, emb in enumerate(embeddings):
+                                original_idx = i + j
+                                if original_idx < len(uncached_texts):
+                                    text_hash = self._text_to_hash(uncached_texts[original_idx])
+                                    self.get_embedding_cached.cache_clear()  # Clear cache to update
+                                    self.get_embedding_cached(text_hash)  # Call once to cache
+                            
+                            # Add delay between API calls
+                            if i + batch_size < len(uncached_texts):
+                                time.sleep(1)  # 1 second delay between batches
+                                
+                            break  # Success, exit retry loop
+                            
+                        except Exception as e:
+                            logger.warning(f"Embedding attempt {attempt+1} failed: {str(e)}")
+                            if attempt < max_retries - 1:
+                                time.sleep(2)  # Wait before retry
+                            else:
+                                logger.error(f"Failed to embed batch after {max_retries} attempts")
+                                # Fill with empty arrays as placeholder for failed embeddings
+                                batch_embeddings.extend([np.array([]) for _ in range(len(batch))])
+                
+                # Combine batch results with their original indices
+                for i, idx in enumerate(uncached_indices):
+                    if i < len(batch_embeddings) and batch_embeddings[i].size > 0:
+                        result_embeddings.append((idx, batch_embeddings[i]))
+            
+            # Sort by original index and combine
+            result_embeddings.sort(key=lambda x: x[0])
+            
+            # Check if we got any valid embeddings
+            if not result_embeddings:
+                return np.array([])
+                
+            # Verify all embeddings have the same dimension
+            first_dim = result_embeddings[0][1].shape[0]
+            all_embeddings = np.zeros((len(texts), first_dim))
+            
+            # Fill in the embeddings we have
+            for idx, emb in result_embeddings:
+                all_embeddings[idx] = emb
+                
+            return all_embeddings
             
         except Exception as e:
             logger.exception(f"Error getting embeddings: {str(e)}")

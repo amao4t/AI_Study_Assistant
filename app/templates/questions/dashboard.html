@@ -32,18 +32,26 @@
                                 <div class="question-type-toggle">
                                     <input type="radio" id="mcq-type" name="question_type" value="mcq" checked>
                                     <label for="mcq-type" class="question-type-label">Multiple Choice</label>
-                                    
-                                    <input type="radio" id="qa-type" name="question_type" value="qa">
-                                    <label for="qa-type" class="question-type-label">Short Answer</label>
                                 </div>
                             </div>
                             
                             <div class="form-group">
-                                <label for="question-count" class="form-label">Number of Questions</label>
-                                <div class="d-flex align-items-center gap-3">
-                                    <input type="range" id="question-count" name="count" min="1" max="10" value="5" class="form-range">
-                                    <span id="question-count-value">5</span>
+                                <label class="form-label">Difficulty Level</label>
+                                <div class="difficulty-options">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="easy-difficulty" name="difficulty[]" value="easy" checked>
+                                        <label class="form-check-label" for="easy-difficulty">Easy</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="medium-difficulty" name="difficulty[]" value="medium" checked>
+                                        <label class="form-check-label" for="medium-difficulty">Medium</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="hard-difficulty" name="difficulty[]" value="hard" checked>
+                                        <label class="form-check-label" for="hard-difficulty">Hard</label>
+                                    </div>
                                 </div>
+                                <small class="text-muted">Questions will be generated based on document length (10-30 questions)</small>
                             </div>
                             
                             <div class="form-group">
@@ -56,7 +64,10 @@
                 <!-- Saved Questions -->
                 <div class="card mt-4">
                     <div class="card-header">
-                        <h3>Saved Questions</h3>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3>Saved Questions</h3>
+                            <button id="clear-history-btn" class="btn btn-sm btn-outline-danger">Clear History</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div id="saved-questions" class="saved-questions">
@@ -104,250 +115,7 @@
 {% endblock %}
 
 {% block custom_css %}
-<style>
-    .dashboard-container {
-        padding: var(--spacing-lg) 0;
-    }
-    
-    .dashboard-header {
-        margin-bottom: var(--spacing-xl);
-    }
-    
-    .dashboard-header h1 {
-        color: var(--primary-color);
-        margin-bottom: var(--spacing-xs);
-    }
-    
-    .dashboard-header p {
-        color: var(--text-secondary);
-        font-size: var(--font-size-lg);
-    }
-    
-    .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-lg);
-    }
-    
-    .col-md-4 {
-        flex: 1;
-        min-width: 300px;
-    }
-    
-    .col-md-8 {
-        flex: 2;
-        min-width: 400px;
-    }
-    
-    .quiz-card {
-        display: flex;
-        flex-direction: column;
-        height: 700px;
-    }
-    
-    .quiz-container {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--spacing-md);
-        height: 600px;
-    }
-    
-    .quiz-welcome {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        height: 100%;
-        color: var(--text-secondary);
-        padding: var(--spacing-xl);
-    }
-    
-    .quiz-welcome-icon {
-        font-size: 3rem;
-        color: var(--primary-light);
-        margin-bottom: var(--spacing-lg);
-    }
-    
-    .quiz-welcome h3 {
-        margin-bottom: var(--spacing-md);
-        color: var(--text-color);
-    }
-    
-    .question-type-toggle {
-        display: flex;
-        background-color: var(--bg-secondary);
-        border-radius: var(--radius-full);
-        padding: 3px;
-    }
-    
-    .question-type-toggle input[type="radio"] {
-        display: none;
-    }
-    
-    .question-type-label {
-        flex: 1;
-        text-align: center;
-        padding: var(--spacing-sm) var(--spacing-md);
-        cursor: pointer;
-        border-radius: var(--radius-full);
-        transition: all var(--transition-fast);
-    }
-    
-    .question-type-toggle input[type="radio"]:checked + .question-type-label {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    
-    .form-range {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 100%;
-        height: 8px;
-        background-color: var(--bg-secondary);
-        border-radius: var(--radius-full);
-        outline: none;
-    }
-    
-    .form-range::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 20px;
-        height: 20px;
-        background-color: var(--primary-color);
-        border-radius: var(--radius-full);
-        cursor: pointer;
-    }
-    
-    .saved-questions {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md);
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .question-set {
-        padding: var(--spacing-md);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-secondary);
-        cursor: pointer;
-        transition: background-color var(--transition-fast);
-    }
-    
-    .question-set:hover {
-        background-color: var(--primary-light);
-    }
-    
-    .question-set-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-sm);
-    }
-    
-    .question-set-title {
-        font-weight: 600;
-        color: var(--text-color);
-    }
-    
-    .question-set-meta {
-        font-size: var(--font-size-sm);
-        color: var(--text-secondary);
-    }
-    
-    .quiz-question {
-        margin-bottom: var(--spacing-xl);
-        padding: var(--spacing-md);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-secondary);
-    }
-    
-    .quiz-question h4 {
-        margin-bottom: var(--spacing-md);
-        color: var(--text-color);
-    }
-    
-    .option-list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
-    
-    .option-item {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-        border-radius: var(--radius-md);
-        transition: background-color var(--transition-fast);
-    }
-    
-    .option-item:hover {
-        background-color: var(--bg-color);
-    }
-    
-    .option-input {
-        margin-top: 3px;
-    }
-    
-    .short-answer-input {
-        width: 100%;
-        padding: var(--spacing-md);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        resize: vertical;
-        min-height: 100px;
-    }
-    
-    .quiz-controls {
-        display: flex;
-        gap: var(--spacing-md);
-    }
-    
-    .loading-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--spacing-sm);
-        color: var(--text-secondary);
-        padding: var(--spacing-md);
-    }
-    
-    .result-correct {
-        color: var(--success-color);
-        font-weight: 600;
-    }
-    
-    .result-incorrect {
-        color: var(--danger-color);
-        font-weight: 600;
-    }
-    
-    .result-partial {
-        color: var(--warning-color);
-        font-weight: 600;
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: var(--spacing-xs) var(--spacing-sm);
-        border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
-        font-weight: 600;
-    }
-    
-    .bg-primary {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    
-    .gap-3 {
-        gap: var(--spacing-md);
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/questions.css') }}">
 {% endblock %}
 
 {% block custom_js %}

@@ -2,6 +2,10 @@
 
 {% block title %}Login - AI Assistant{% endblock %}
 
+{% block custom_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="auth-container">
     <div class="auth-card">
@@ -45,69 +49,6 @@
 </div>
 {% endblock %}
 
-{% block custom_css %}
-<style>
-    .auth-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: calc(100vh - var(--header-height) - 100px);
-        padding: var(--spacing-xl) 0;
-    }
-    
-    .auth-card {
-        width: 100%;
-        max-width: 500px;
-        padding: var(--spacing-xl);
-        background-color: var(--bg-color);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .auth-header {
-        text-align: center;
-        margin-bottom: var(--spacing-xl);
-    }
-    
-    .auth-header h2 {
-        margin-bottom: var(--spacing-sm);
-        color: var(--primary-color);
-    }
-    
-    .auth-header p {
-        color: var(--text-secondary);
-    }
-    
-    .auth-form .form-group {
-        margin-bottom: var(--spacing-lg);
-    }
-    
-    .btn-block {
-        width: 100%;
-        padding: var(--spacing-md);
-    }
-    
-    .auth-footer {
-        text-align: center;
-        margin-top: var(--spacing-xl);
-        padding-top: var(--spacing-md);
-        border-top: 1px solid var(--border-color);
-    }
-    
-    .form-check {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-    }
-    
-    .form-check-input {
-        width: 18px;
-        height: 18px;
-        margin: 0;
-    }
-    
-    .form-check-label {
-        margin: 0;
-    }
-</style>
+{% block custom_js %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 {% endblock %}

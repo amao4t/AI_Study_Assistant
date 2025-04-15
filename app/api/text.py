@@ -60,14 +60,15 @@ def correct_text():
         return jsonify({'error': 'No text provided'}), 400
     
     # Correct the text
-    corrected, error = text_bp.text_processor.correct_text(data.get('text'))
+    corrected, error, corrections = text_bp.text_processor.correct_text(data.get('text'))
     
     if error:
         return jsonify({'error': error}), 400
     
     return jsonify({
         'corrected_text': corrected,
-        'original_text': data.get('text')
+        'original_text': data.get('text'),
+        'corrections': corrections or []
     }), 200
 
 @text_bp.route('/rephrase', methods=['POST'])

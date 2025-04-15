@@ -28,6 +28,9 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_timeout': 30
     }
     
     # API Keys
@@ -38,6 +41,7 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # Increased from 5MB to 10MB max upload size
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
+    ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
     
     # Cache settings
     CACHE_TYPE = 'simple'

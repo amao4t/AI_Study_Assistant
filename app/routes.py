@@ -36,3 +36,10 @@ def text_dashboard():
 def study_dashboard():
     """Render the AI assistant dashboard"""
     return render_template('study/dashboard.html')
+
+# OCR and Image processing routes
+@main_bp.route('/ocr')
+@login_required
+def ocr_dashboard():
+    """Render the OCR and image processing dashboard"""
+    return render_template('ocr.html')

@@ -8,9 +8,13 @@ import requests
 from werkzeug.utils import secure_filename
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import html
+import base64
+import json
+from io import BytesIO
 
 from app import db
-from app.models.document import Document, DocumentChunk
+from app.models.document import Document, DocumentChunk, Question
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -80,6 +84,31 @@ class DocumentProcessor:
             db.session.rollback()
             return None, str(e)
     
+    def sanitize_input(self, text):
+        """Sanitize input text to prevent security issues"""
+        if not text:
+            return ""
+            
+        # Remove potentially dangerous HTML tags
+        text = html.escape(text)
+        
+        # Remove script tags and content
+        text = re.sub(r'<script.*?>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Remove iframe tags
+        text = re.sub(r'<iframe.*?>.*?</iframe>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Remove on* attributes (onclick, onload, etc.)
+        text = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', '', text, flags=re.IGNORECASE)
+        
+        # Remove data URIs in attributes
+        text = re.sub(r'data:[^;]*;base64,([^\'"]*)', '', text)
+        
+        # Remove excessive newlines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        return text
+    
     def process_document_text(self, document):
         """Extract text from document and create chunks"""
         file_path = document.file_path
@@ -91,7 +120,6 @@ class DocumentProcessor:
             # Extract text based on file type
             if file_type == 'pdf':
                 try:
-                    import PyPDF2
                     text = self._extract_text_from_pdf(file_path)
                 except ImportError:
                     logger.warning("PyPDF2 not available, using basic text extraction")
@@ -108,11 +136,14 @@ class DocumentProcessor:
             else:
                 return False, f"Unsupported file type: {file_type}"
             
+            # Sanitize the extracted text
+            text = self.sanitize_input(text)
+            
             text_length = len(text)
-            logger.info(f"Text extracted, length: {text_length} characters")
+            logger.info(f"Text extracted and sanitized, length: {text_length} characters")
             
             # Truncate very long texts to prevent memory issues
-            max_text_length = 100000  # Tăng từ 50000 lên 100000
+            max_text_length = 100000
             if text_length > max_text_length:
                 logger.warning(f"Text too long ({text_length} chars), truncating to {max_text_length}")
                 text = text[:max_text_length]
@@ -123,7 +154,7 @@ class DocumentProcessor:
             overlap = 100
             
             # Increased maximum number of chunks
-            MAX_CHUNKS = 100  # Increased from 50 to 100
+            MAX_CHUNKS = 100
             
             # Delete any existing chunks for this document
             existing_chunks = DocumentChunk.query.filter_by(document_id=document.id).all()
@@ -132,6 +163,7 @@ class DocumentProcessor:
             db.session.commit()
             
             # Create chunks
+            chunks = []
             start = 0
             chunk_index = 0
             
@@ -154,17 +186,12 @@ class DocumentProcessor:
                     start = end
                     continue
                 
-                # Create and save chunk
-                doc_chunk = DocumentChunk(
-                    chunk_text=chunk_text,
-                    chunk_index=chunk_index,
-                    document_id=document.id
-                )
-                db.session.add(doc_chunk)
-                
-                # Commit each chunk immediately
-                db.session.commit()
-                logger.info(f"Saved chunk {chunk_index}, length: {len(chunk_text)}")
+                # Add chunk to list
+                chunks.append({
+                    'chunk_text': chunk_text,
+                    'chunk_index': chunk_index,
+                    'document_id': document.id
+                })
                 
                 # Move to next chunk with proper overlap
                 start = end - overlap
@@ -173,12 +200,80 @@ class DocumentProcessor:
             if chunk_index >= MAX_CHUNKS and start < text_length:
                 logger.warning(f"Reached maximum chunk limit ({MAX_CHUNKS}), truncating document")
             
-            return True, None
+            # Process chunks in parallel
+            return self._process_chunks_parallel(document.id, chunks)
         
         except Exception as e:
             logger.exception("Error in process_document_text")
             db.session.rollback()
             return False, str(e)
+    
+    def _process_chunks_parallel(self, document_id, chunks):
+        """Process document chunks in parallel for better performance"""
+        if not chunks:
+            return True, None
+            
+        try:
+            logger.info(f"Processing {len(chunks)} chunks in parallel for document {document_id}")
+            
+            # Calculate optimal number of workers based on available CPUs
+            max_workers = min(8, os.cpu_count() or 4)
+            logger.info(f"Using {max_workers} workers for parallel processing")
+            
+            # Process chunks in parallel batches
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit tasks
+                futures = []
+                for chunk_data in chunks:
+                    futures.append(executor.submit(self._create_chunk, chunk_data))
+                
+                # Process results
+                for future in as_completed(futures):
+                    try:
+                        success = future.result()
+                        if not success:
+                            logger.warning(f"Failed to create a chunk for document {document_id}")
+                    except Exception as e:
+                        logger.exception(f"Error in chunk processing: {e}")
+            
+            logger.info(f"Parallel chunk processing complete for document {document_id}")
+            return True, None
+            
+        except Exception as e:
+            logger.exception(f"Error in parallel chunk processing: {e}")
+            db.session.rollback()
+            return False, str(e)
+    
+    def _create_chunk(self, chunk_data):
+        """Create a single document chunk (for parallel processing)"""
+        try:
+            # Create new session for this thread to avoid conflicts
+            from app import create_app
+            app = create_app()
+            with app.app_context():
+                from app import db
+                from app.models.document import DocumentChunk
+                
+                # Create and save chunk with thread-local session
+                doc_chunk = DocumentChunk(
+                    chunk_text=chunk_data['chunk_text'],
+                    chunk_index=chunk_data['chunk_index'],
+                    document_id=chunk_data['document_id']
+                )
+                
+                db.session.add(doc_chunk)
+                db.session.commit()
+                
+                return True
+            
+        except Exception as e:
+            logger.exception(f"Error creating chunk: {e}")
+            # Rollback in case of error
+            try:
+                db.session.rollback()
+            except:
+                pass
+            return False
     
     def _extract_text_from_pdf(self, file_path):
         """Extract text from PDF file with improved processing for larger documents"""
@@ -186,7 +281,7 @@ class DocumentProcessor:
         text = ""
         try:
             with open(file_path, 'rb') as f:
-                pdf_reader = PyPDF2.PdfReader(f)
+                pdf_reader = PyPDF2.PdfReader(f, strict=False)
                 # Increased limit of pages to process (max 50 pages)
                 pages_to_process = min(len(pdf_reader.pages), 50)
                 logger.info(f"Processing {pages_to_process} pages from PDF")
@@ -201,30 +296,89 @@ class DocumentProcessor:
                     
                     # Collect results
                     page_texts = [""] * pages_to_process
+                    success_count = 0
+                    
                     for future in as_completed(future_to_page):
                         page_num = future_to_page[future]
                         try:
                             page_text = future.result()
-                            page_texts[page_num] = f"\n--- Page {page_num+1} ---\n{page_text}\n"
+                            if page_text and len(page_text.strip()) > 0:
+                                page_texts[page_num] = f"\n--- Page {page_num+1} ---\n{page_text}\n"
+                                success_count += 1
                         except Exception as e:
                             logger.warning(f"Error extracting text from page {page_num}: {e}")
+                    
+                    # Check if we extracted any meaningful text
+                    if success_count == 0 and pages_to_process > 0:
+                        logger.warning("Failed to extract text from any pages, trying OCR fallback")
+                        try:
+                            # Try OCR as a fallback
+                            return self.extract_text_from_pdf_with_ocr(file_path)
+                        except Exception as ocr_error:
+                            logger.warning(f"OCR fallback also failed: {ocr_error}")
                     
                     # Combine all text in page order
                     text = "".join(page_texts)
                     
+            # If we got very little text, try OCR as a fallback
+            if len(text.strip()) < 100 and pages_to_process > 0:
+                logger.info("Very little text extracted, trying OCR fallback")
+                try:
+                    ocr_text = self.extract_text_from_pdf_with_ocr(file_path)
+                    if len(ocr_text.strip()) > len(text.strip()):
+                        return ocr_text
+                except Exception as ocr_error:
+                    logger.warning(f"OCR fallback failed: {ocr_error}")
+                    
             return text
         except Exception as e:
-            logger.exception("Error extracting text from PDF")
-            # Return empty string to fail gracefully
-            return ""
+            logger.exception(f"Error extracting text from PDF: {e}")
+            # Try OCR if regular extraction fails
+            try:
+                logger.info("Regular PDF extraction failed, trying OCR fallback")
+                return self.extract_text_from_pdf_with_ocr(file_path)
+            except Exception as ocr_error:
+                logger.warning(f"OCR fallback also failed: {ocr_error}")
+                # Return empty string to fail gracefully
+                return ""
     
     def _extract_page_text(self, pdf_reader, page_num):
-        """Extract text from a single PDF page"""
+        """Extract text from a single PDF page with improved error handling"""
         try:
             page = pdf_reader.pages[page_num]
-            return page.extract_text() or ""
+            extracted_text = page.extract_text() or ""
+            
+            # Additional cleaning for better quality
+            extracted_text = extracted_text.replace('\n\n', '\n').strip()
+            
+            # Check if the text contains actual content (not just whitespace or common PDF artifacts)
+            if len(extracted_text.strip()) < 10:
+                # Try alternate extraction method
+                extracted_text = self._extract_page_text_alternate(page) or ""
+                
+            return extracted_text
         except Exception as e:
             logger.warning(f"Failed to extract text from page {page_num}: {e}")
+            return ""
+            
+    def _extract_page_text_alternate(self, page):
+        """Alternative method to extract text from a PDF page when the primary method fails"""
+        try:
+            # Try to extract text using a different approach (accessing raw stream data)
+            if '/Contents' in page and hasattr(page['/Contents'], 'get_data'):
+                data = page['/Contents'].get_data()
+                if data:
+                    # Simple text extraction from content stream
+                    text = ""
+                    data_str = data.decode('latin-1', errors='replace')
+                    pattern = r'\((.*?)\)'
+                    matches = re.findall(pattern, data_str)
+                    if matches:
+                        text = " ".join(matches)
+                        return text
+            return ""
+        except Exception as e:
+            logger.warning(f"Alternative text extraction failed: {e}")
             return ""
     
     def _extract_text_from_docx(self, file_path):
@@ -376,11 +530,17 @@ class DocumentProcessor:
             if os.path.exists(document.file_path):
                 os.remove(document.file_path)
             
-            # Delete the document record and associated chunks
+            # Delete related questions first
+            questions = Question.query.filter_by(document_id=document_id).all()
+            for question in questions:
+                db.session.delete(question)
+            
+            # Delete document chunks
             chunks = DocumentChunk.query.filter_by(document_id=document_id).all()
             for chunk in chunks:
                 db.session.delete(chunk)
                 
+            # Delete the document record
             db.session.delete(document)
             db.session.commit()
             
@@ -388,6 +548,7 @@ class DocumentProcessor:
         
         except Exception as e:
             db.session.rollback()
+            logger.exception(f"Error deleting document: {e}")
             return False, str(e)
     
     def summarize_document(self, document_id):
@@ -468,3 +629,191 @@ class DocumentProcessor:
         except Exception as e:
             logger.exception(f"Error in summarize_document: {str(e)}")
             return None, str(e)
+    
+    def extract_text_from_image(self, image_path):
+        """Extract text from images using OCR"""
+        try:
+            # Import here to avoid requiring these libraries for basic functionality
+            import pytesseract
+            from PIL import Image
+            
+            logger.info(f"Extracting text from image: {image_path}")
+            img = Image.open(image_path)
+            
+            # Preprocess image for better OCR results (optional)
+            # img = img.convert('L')  # Convert to grayscale
+            
+            # Extract text using Tesseract OCR
+            text = pytesseract.image_to_string(img)
+            
+            # Clean up the text
+            text = self.sanitize_input(text)
+            
+            logger.info(f"Successfully extracted {len(text)} characters from image")
+            return text
+        except Exception as e:
+            logger.exception(f"Error extracting text from image: {str(e)}")
+            return ""
+    
+    def extract_text_from_pdf_with_ocr(self, pdf_path):
+        """Extract text from PDF with OCR for image-based PDFs"""
+        try:
+            # Import here to avoid requiring these libraries for basic functionality
+            import pytesseract
+            from pdf2image import convert_from_path
+            
+            logger.info(f"Converting PDF to images using OCR: {pdf_path}")
+            # Convert PDF to images
+            pages = convert_from_path(pdf_path, 300)  # DPI 300
+            
+            # Process each page
+            text = ""
+            page_count = len(pages)
+            logger.info(f"Processing {page_count} pages with OCR")
+            
+            for i, page in enumerate(pages[:10]):  # Limit to first 10 pages for performance
+                logger.info(f"OCR processing page {i+1}/{min(page_count, 10)}")
+                
+                # Extract text using OCR
+                page_text = pytesseract.image_to_string(page)
+                text += f"\n\n--- Page {i+1} ---\n\n{page_text}"
+            
+            # Clean the extracted text
+            text = self.sanitize_input(text)
+            
+            logger.info(f"Successfully extracted {len(text)} characters from PDF with OCR")
+            return text
+        except ImportError as e:
+            logger.warning(f"OCR libraries not available: {e}")
+            return ""
+        except Exception as e:
+            logger.exception(f"Error extracting text from PDF with OCR: {str(e)}")
+            return ""
+    
+    def analyze_image_content(self, image_path, api_key=None):
+        """Analyze image content using Claude Vision API"""
+        try:
+            logger.info(f"Analyzing image content: {image_path}")
+            
+            # If no API key provided, try to get from current_app
+            if not api_key:
+                from flask import current_app
+                api_key = current_app.config.get('ANTHROPIC_API_KEY')
+                
+            if not api_key:
+                logger.error("No API key available for image analysis")
+                return "Error: API key not configured for image analysis"
+            
+            # Read and encode the image
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+            
+            # Prepare API call
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            }
+            
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Describe this image in detail and extract any text visible."},
+                        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64_image}}
+                    ]
+                }
+            ]
+            
+            # Call Claude Vision API
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers=headers,
+                json={"model": "claude-3-opus-20240229", "messages": messages, "max_tokens": 1000}
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            analysis = result['content'][0]['text'] if 'content' in result and result['content'] else ""
+            logger.info(f"Successfully analyzed image, generated {len(analysis)} characters of description")
+            
+            return analysis
+            
+        except Exception as e:
+            logger.exception(f"Error analyzing image: {str(e)}")
+            return f"Error analyzing image: {str(e)}"
+    
+    def process_document_with_images(self, document_id):
+        """Process a document that may contain images using OCR and image analysis"""
+        document = Document.query.get(document_id)
+        if not document:
+            return False, "Document not found"
+        
+        try:
+            # Extract text based on file type
+            if document.file_type == 'pdf':
+                # Try normal extraction first
+                text = self._extract_text_from_pdf(document.file_path)
+                
+                # If little text was extracted, likely an image-based PDF
+                if len(text.strip()) < 100:
+                    logger.info("PDF appears to be image-based, using OCR")
+                    text = self.extract_text_from_pdf_with_ocr(document.file_path)
+            else:
+                # For other document types, use existing methods
+                text = self._extract_document_text(document)
+            
+            # Sanitize and chunk the text
+            text = self.sanitize_input(text)
+            
+            # Delete existing chunks
+            existing_chunks = DocumentChunk.query.filter_by(document_id=document.id).all()
+            for chunk in existing_chunks:
+                db.session.delete(chunk)
+            db.session.commit()
+            
+            # Create new chunks
+            chunks = []
+            chunk_size = 1000
+            overlap = 100
+            text_length = len(text)
+            start = 0
+            chunk_index = 0
+            MAX_CHUNKS = 100
+            
+            while start < text_length and chunk_index < MAX_CHUNKS:
+                end = min(start + chunk_size, text_length)
+                
+                # Find good break point
+                if end < text_length:
+                    match = re.search(r'[.!?]\s*', text[max(end-50, start):end])
+                    if match:
+                        end = max(end-50, start) + match.end()
+                
+                chunk_text = text[start:end].strip()
+                
+                if not chunk_text:
+                    start = end
+                    continue
+                
+                chunks.append({
+                    'chunk_text': chunk_text,
+                    'chunk_index': chunk_index,
+                    'document_id': document.id
+                })
+                
+                start = end - overlap
+                chunk_index += 1
+            
+            # Process chunks in parallel
+            success, error = self._process_chunks_parallel(document.id, chunks)
+            if not success:
+                return False, error
+                
+            return True, None
+            
+        except Exception as e:
+            logger.exception(f"Error processing document with images: {str(e)}")
+            db.session.rollback()
+            return False, str(e)

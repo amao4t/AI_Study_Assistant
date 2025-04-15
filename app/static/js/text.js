@@ -118,6 +118,12 @@ document.addEventListener('DOMContentLoaded', function() {
         processBtn.disabled = true;
         resultContainer.style.display = 'none';
         
+        // Hide corrections panel
+        const correctionsPanel = document.getElementById('corrections-panel');
+        if (correctionsPanel) {
+            correctionsPanel.style.display = 'none';
+        }
+        
         try {
             // Get selected options based on current tool
             let endpoint = `/api/text/${currentTool}`;
@@ -141,19 +147,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(body)
             });
             
+            // Debug log the response
+            console.log('API Response:', response);
+            
             // Display result
             let result = '';
             
             if (currentTool === 'correct') {
                 result = response.corrected_text;
+                
+                // Clean up any prefixes or explanations that might be in the corrected text
+                result = cleanupCorrectedText(result);
+                
+                // Handle corrections if available
+                if (response.corrections && response.corrections.length > 0) {
+                    console.log('Corrections found:', response.corrections);
+                    displayCorrections(result, response.corrections, response.original_text);
+                } else {
+                    console.log('No corrections found in response');
+                    // Just display the corrected text normally
+                    resultText.textContent = result;
+                }
             } else if (currentTool === 'rephrase') {
                 result = response.rephrased_text;
+                resultText.textContent = result;
             } else if (currentTool === 'explain') {
                 result = response.explanation;
+                resultText.textContent = result;
             }
             
             if (result) {
-                resultText.textContent = result;
                 resultContainer.style.display = 'block';
             } else {
                 throw new Error('No result returned from the server');
@@ -166,6 +189,139 @@ document.addEventListener('DOMContentLoaded', function() {
             processBtn.innerHTML = 'Process Text';
             processBtn.disabled = false;
         }
+    }
+    
+    // Display corrections with highlights
+    function displayCorrections(correctedText, corrections, originalText) {
+        const correctionsPanel = document.getElementById('corrections-panel');
+        const correctionsList = document.getElementById('corrections-list');
+        
+        if (!correctionsPanel || !correctionsList) return;
+        
+        // Update the heading with count
+        const heading = correctionsPanel.querySelector('h5');
+        if (heading) {
+            heading.textContent = `Corrections Made (${corrections.length})`;
+        }
+        
+        // Display complete corrected text (without any highlights first)
+        resultText.textContent = correctedText;
+        
+        // Sort corrections to process longer phrases first
+        corrections.sort((a, b) => b.corrected.length - a.corrected.length);
+        
+        // Create simpler solution that uses a one-time replacement approach
+        let processedHTML = escapeHtml(correctedText);
+        let placeholders = [];
+        
+        // First pass: replace all corrections with placeholder markers
+        corrections.forEach((correction, index) => {
+            const correctedText = correction.corrected;
+            // Simple text replacement (not using regex)
+            const placeholder = `___CORRECTION_${index}___`;
+            let position = processedHTML.indexOf(escapeHtml(correctedText));
+            
+            if (position !== -1) {
+                // Store the data we'll need to restore
+                placeholders.push({
+                    placeholder: placeholder,
+                    html: `<span class="highlight highlight-corrected" data-correction="${index}">${escapeHtml(correctedText)}</span>`,
+                    position: position
+                });
+                // Replace just the first occurrence
+                processedHTML = 
+                    processedHTML.substring(0, position) + 
+                    placeholder + 
+                    processedHTML.substring(position + escapeHtml(correctedText).length);
+            }
+        });
+        
+        // Second pass: replace placeholders with actual HTML
+        placeholders.forEach(item => {
+            processedHTML = processedHTML.replace(item.placeholder, item.html);
+        });
+        
+        // Set the HTML
+        resultText.innerHTML = processedHTML;
+        
+        // Build the corrections list
+        let correctionsHtml = '';
+        corrections.forEach((correction, index) => {
+            correctionsHtml += `
+                <div class="correction-item" data-correction="${index}">
+                    <div>
+                        <span class="correction-original">${escapeHtml(correction.original)}</span>
+                        <span class="correction-arrow">→</span>
+                        <span class="correction-corrected">${escapeHtml(correction.corrected)}</span>
+                    </div>
+                    <div class="correction-explanation">${escapeHtml(correction.explanation)}</div>
+                </div>
+            `;
+        });
+        
+        correctionsList.innerHTML = correctionsHtml;
+        correctionsPanel.style.display = 'block';
+        
+        // Add event listeners to all interactive elements
+        addCorrectionEventListeners();
+    }
+    
+    // Add event listeners for correction elements
+    function addCorrectionEventListeners() {
+        // Add event listeners for correction items in the list
+        document.querySelectorAll('.correction-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = this.dataset.correction;
+                highlightCorrection(index);
+                
+                // Add active class to this item
+                document.querySelectorAll('.correction-item').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+        
+        // Add event listeners for highlight spans in the text
+        document.querySelectorAll('.highlight').forEach(span => {
+            span.addEventListener('click', function() {
+                const index = this.dataset.correction;
+                highlightCorrection(index);
+                
+                // Scroll to and activate the corresponding correction item
+                const correctionItem = document.querySelector(`.correction-item[data-correction="${index}"]`);
+                if (correctionItem) {
+                    document.querySelectorAll('.correction-item').forEach(el => el.classList.remove('active'));
+                    correctionItem.classList.add('active');
+                    correctionItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+    }
+    
+    // Highlight a specific correction in the text
+    function highlightCorrection(index) {
+        // Remove active highlight from all spans
+        document.querySelectorAll('.highlight').forEach(span => {
+            span.classList.remove('highlight-active');
+        });
+        
+        // Add active highlight to the selected span
+        const span = document.querySelector(`.highlight[data-correction="${index}"]`);
+        if (span) {
+            span.classList.add('highlight-active');
+            // Scroll to the span
+            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    
+    // Helper function to safely escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
     
     // Render history items
@@ -193,7 +349,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="history-item" data-id="${item.id}">
                     <div class="history-header">
                         <div class="history-title">${date}</div>
-                        <div class="history-tool">${item.toolName}</div>
+                        <div class="history-actions">
+                            <div class="history-tool">${item.toolName}</div>
+                            <button class="delete-history-item" data-id="${item.id}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="history-preview">${preview}</div>
                 </div>
@@ -204,7 +365,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add event listeners to history items
         document.querySelectorAll('.history-item').forEach(item => {
-            item.addEventListener('click', function() {
+            item.addEventListener('click', function(e) {
+                // Don't trigger if the delete button was clicked
+                if (e.target.closest('.delete-history-item')) {
+                    return;
+                }
+                
                 const id = parseInt(this.dataset.id);
                 const historyItem = history.find(h => h.id === id);
                 
@@ -227,6 +393,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+        
+        // Add event listeners for delete buttons
+        document.querySelectorAll('.delete-history-item').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent item selection
+                const id = parseInt(this.dataset.id);
+                deleteHistoryItem(id);
+            });
+        });
+    }
+    
+    // Delete a single history item
+    function deleteHistoryItem(id) {
+        const index = history.findIndex(item => item.id === id);
+        if (index !== -1) {
+            history.splice(index, 1);
+            renderHistory();
+            showNotification('Item removed from history', 'info');
+        }
     }
     
     // Initialize history
@@ -309,5 +494,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }, duration);
         }
+    }
+    
+    // Add 'Clear All' button functionality
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all history items?')) {
+                history = [];
+                renderHistory();
+                showNotification('History cleared', 'info');
+            }
+        });
+    }
+    
+    // Helper function to clean up any explanatory text that Claude might include
+    function cleanupCorrectedText(text) {
+        // Remove any explanatory prefixes that Claude sometimes adds
+        const prefixesToRemove = [
+            "Here is the corrected text:",
+            "Corrected text:",
+            "Here's the corrected text:",
+            "The corrected text is:"
+        ];
+        
+        let cleanedText = text;
+        for (const prefix of prefixesToRemove) {
+            if (cleanedText.startsWith(prefix)) {
+                cleanedText = cleanedText.substring(prefix.length).trim();
+            }
+        }
+        
+        // Remove any JSON-like content or markers that might have leaked through
+        if (cleanedText.includes("===CORRECTIONS_JSON===")) {
+            cleanedText = cleanedText.split("===CORRECTIONS_JSON===")[0].trim();
+        }
+        
+        if (cleanedText.includes("[{")) {
+            cleanedText = cleanedText.split("[{")[0].trim();
+        }
+        
+        return cleanedText;
     }
 });

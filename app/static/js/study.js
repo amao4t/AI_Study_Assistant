@@ -4,9 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const toolItems = document.querySelectorAll('.tool-item');
     const toolPanels = document.querySelectorAll('.tool-panel');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatContainer = document.getElementById('chat-container');
     const planForm = document.getElementById('plan-form');
     const planResult = document.getElementById('plan-result');
     const planOverview = document.getElementById('plan-overview');
@@ -23,6 +20,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const techniquesList = document.getElementById('techniques-list');
     const sessionsList = document.getElementById('sessions-list');
     const startSessionBtn = document.getElementById('start-session-btn');
+    const clearAllSessionsBtn = document.getElementById('clear-all-sessions-btn');
+    const plansList = document.getElementById('plans-list');
+    const clearAllPlansBtn = document.getElementById('clear-all-plans-btn');
     const sessionModal = document.getElementById('session-modal');
     const sessionForm = document.getElementById('session-form');
     const sessionFormContainer = document.getElementById('session-form-container');
@@ -36,17 +36,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const timerSeconds = document.getElementById('timer-seconds');
     const modalCloseBtn = document.querySelector('.modal-close');
     const sessionDocument = document.getElementById('session-document');
-    const copyLastMessageBtn = document.getElementById('copy-last-message-btn');
     
     // State
-    let chatHistory = [];
     let activeSessionId = null;
     let timerInterval = null;
     let sessionStartTime = null;
+    let currentPlanData = null;
     
     // Initialize
     loadSessions();
     loadDocuments();
+    loadSavedPlans();
     
     // Tool Selection
     toolItems.forEach(item => {
@@ -68,30 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // Chat Functionality
-    if (chatForm && chatInput && chatContainer) {
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const message = chatInput.value.trim();
-            if (!message) return;
-            
-            // Add user message to chat
-            addMessageToChat(message, 'user');
-            
-            // Clear input
-            chatInput.value = '';
-            
-            // Handle chat submission (improved)
-            handleChatSubmit(message);
-        });
-    }
-    
-    // Copy last message button
-    if (copyLastMessageBtn) {
-        copyLastMessageBtn.addEventListener('click', copyLastMessage);
-    }
     
     // Plan Functionality
     if (planForm) {
@@ -188,176 +164,6 @@ document.addEventListener('DOMContentLoaded', function() {
         endSessionBtn.addEventListener('click', endStudySession);
     }
     
-    // Handle chat submission with improved error handling
-    async function handleChatSubmit(message) {
-        // Show typing indicator
-        const typingIndicator = document.createElement('div');
-        typingIndicator.className = 'chat-bubble bot typing-indicator';
-        typingIndicator.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-        chatContainer.appendChild(typingIndicator);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        
-        try {
-            // Call API
-            const response = await fetch('/api/study/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    message: message,
-                    chat_history: chatHistory
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            
-            const data = await response.json();
-            
-            // Remove typing indicator
-            const indicator = document.querySelector('.typing-indicator');
-            if (indicator) indicator.remove();
-            
-            // Add bot message
-            if (data && data.response) {
-                const messageEl = addMessageToChat(data.response, 'bot');
-                
-                // Show fallback warning if this is a fallback response
-                if (data.is_fallback) {
-                    messageEl.classList.add('fallback-response');
-                    showFallbackWarning();
-                }
-                
-                chatHistory = data.chat_history || [];
-            } else {
-                throw new Error('Invalid response from server');
-            }
-        } catch (error) {
-            console.error('Error sending message:', error);
-            
-            // Remove typing indicator
-            const indicator = document.querySelector('.typing-indicator');
-            if (indicator) indicator.remove();
-            
-            // Add error message
-            addMessageToChat('Sorry, I encountered an error. Please check your internet connection and try again.', 'bot');
-            
-            // Show error notification
-            showNotification('Connection error. Please check your internet connection and try again.', 'danger');
-        }
-    }
-    
-    // Add message to chat - Improved for better formatting
-    function addMessageToChat(message, sender) {
-        if (!chatContainer) return;
-        
-        // Remove welcome message if it exists
-        const welcomeMessage = chatContainer.querySelector('.chat-welcome');
-        if (welcomeMessage) {
-            welcomeMessage.remove();
-        }
-        
-        // Create message element
-        const messageEl = document.createElement('div');
-        messageEl.className = `chat-bubble ${sender}`;
-        
-        // Format message with simple Markdown
-        message = formatMessageContent(message);
-        
-        // Use innerHTML with processed content
-        messageEl.innerHTML = message;
-        
-        // Add message to chat
-        chatContainer.appendChild(messageEl);
-        
-        // Scroll to bottom
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        
-        return messageEl;
-    }
-    
-    // Format message content with simple Markdown
-    function formatMessageContent(message) {
-        // Replace URLs with clickable links
-        message = message.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-        
-        // Process ordered lists
-        message = message.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ol>$1</ol>');
-        
-        // Process unordered lists
-        message = message.replace(/^-\s(.+)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-        
-        // Process code blocks
-        message = message.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
-        
-        // Process inline code
-        message = message.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
-        // Process bold formatting
-        message = message.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        
-        // Process italic formatting
-        message = message.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        
-        // Ensure line breaks are preserved
-        message = message.replace(/\n/g, '<br>');
-        
-        return message;
-    }
-    
-    // Show fallback warning
-    function showFallbackWarning() {
-        const warningElement = document.createElement('div');
-        warningElement.className = 'fallback-warning';
-        warningElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle"></i>
-            <span>AI service temporarily limited. You're receiving a fallback response.</span>
-        `;
-        
-        // Add to chat container or as a notification
-        const notificationsContainer = document.querySelector('.notifications-container') || 
-            document.createElement('div');
-        
-        if (!document.querySelector('.notifications-container')) {
-            notificationsContainer.className = 'notifications-container';
-            document.body.appendChild(notificationsContainer);
-        }
-        
-        notificationsContainer.appendChild(warningElement);
-        
-        // Auto dismiss after 10 seconds
-        setTimeout(() => {
-            warningElement.classList.add('fade-out');
-            setTimeout(() => warningElement.remove(), 500);
-        }, 10000);
-    }    
-    
-    // Copy last message
-    function copyLastMessage() {
-        const botMessages = chatContainer.querySelectorAll('.chat-bubble.bot');
-        if (botMessages.length > 0) {
-            const lastBotMessage = botMessages[botMessages.length - 1];
-            
-            // Copy message content (plain text)
-            const messageText = lastBotMessage.innerText || lastBotMessage.textContent;
-            
-            navigator.clipboard.writeText(messageText)
-                .then(() => {
-                    showNotification('Message copied to clipboard', 'success');
-                })
-                .catch(err => {
-                    console.error('Error copying text: ', err);
-                    showNotification('Failed to copy message', 'danger');
-                });
-        } else {
-            showNotification('No messages to copy', 'warning');
-        }
-    }
-    
     // Generate study plan
     async function generateStudyPlan(subject, goal, timeframe, hoursPerWeek) {
         if (!planForm || !planResult) return;
@@ -391,11 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
-            // Check if this is a fallback response
-            if (data.is_fallback) {
-                showFallbackWarning();
-            }
-            
             // Display plan
             renderStudyPlan(data);
             planResult.style.display = 'block';
@@ -410,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Render study plan
+    // Render study plan with improved visual structure
     function renderStudyPlan(plan) {
         if (!planOverview || !planWeeks || !planTechniques || !planMilestones) return;
         
@@ -457,7 +258,23 @@ document.addEventListener('DOMContentLoaded', function() {
             plan.techniques.forEach(technique => {
                 const techElement = document.createElement('div');
                 techElement.className = 'technique-item';
-                techElement.innerHTML = `<h6>${technique}</h6>`;
+                
+                // Check if technique is string or object
+                if (typeof technique === 'string') {
+                    techElement.innerHTML = `<h6>${technique}</h6>`;
+                } else if (typeof technique === 'object') {
+                    const title = technique.name || technique.title || technique.toString();
+                    let techniqueContent = `<h6>${title}</h6>`;
+                    
+                    if (technique.description) {
+                        techniqueContent += `<p>${technique.description}</p>`;
+                    }
+                    
+                    techElement.innerHTML = techniqueContent;
+                } else {
+                    techElement.innerHTML = `<h6>${technique}</h6>`;
+                }
+                
                 planTechniques.appendChild(techElement);
             });
         } else {
@@ -467,10 +284,30 @@ document.addEventListener('DOMContentLoaded', function() {
         // Milestones
         planMilestones.innerHTML = '';
         if (plan.milestones && plan.milestones.length > 0) {
-            plan.milestones.forEach(milestone => {
+            plan.milestones.forEach((milestone, index) => {
                 const milestoneElement = document.createElement('div');
                 milestoneElement.className = 'milestone-item';
-                milestoneElement.innerHTML = `<h6>${milestone}</h6>`;
+                
+                // Handle different milestone formats (string or object)
+                if (typeof milestone === 'string') {
+                    milestoneElement.innerHTML = `<h6>${milestone}</h6>`;
+                } else if (typeof milestone === 'object') {
+                    // Check if milestone is just [object Object] and apply better handling
+                    let milestoneText = '';
+                    
+                    if (milestone.text || milestone.description || milestone.name) {
+                        milestoneText = milestone.text || milestone.description || milestone.name;
+                    } else if (milestone.toString() === '[object Object]') {
+                        milestoneText = `Milestone ${index + 1}`;
+                    } else {
+                        milestoneText = milestone.toString();
+                    }
+                    
+                    milestoneElement.innerHTML = `<h6>${milestoneText}</h6>`;
+                } else {
+                    milestoneElement.innerHTML = `<h6>${milestone.toString()}</h6>`;
+                }
+                
                 planMilestones.appendChild(milestoneElement);
             });
         } else {
@@ -509,11 +346,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const data = await response.json();
-            
-            // Check if this is a fallback response
-            if (data.is_fallback) {
-                showFallbackWarning();
-            }
             
             // Display resources
             renderResources(data.resources || []);
@@ -668,11 +500,6 @@ function renderResources(resources) {
             const data = await response.json();
             console.log('Techniques response:', data);
             
-            // Check if this is a fallback response
-            if (data.is_fallback) {
-                showFallbackWarning();
-            }
-            
             // Display techniques
             renderTechniques(data.techniques || []);
             techniquesResult.style.display = 'block';
@@ -734,7 +561,7 @@ function generateFallbackTechniques(subject, learningStyle) {
     return fallbackTechniques;
 }
     
-    // Render techniques - FIXED to handle different data formats
+    // Render techniques - FIXED to handle different data formats with improved visual structure
     function renderTechniques(techniques) {
         if (!techniquesList) return;
         
@@ -751,16 +578,22 @@ function generateFallbackTechniques(subject, learningStyle) {
             
             // Handle different formats of technique data
             if (typeof technique === 'string') {
-                // Simple string format
-                techniqueElement.innerHTML = `<h6 class="technique-title">${technique}</h6>`;
+                // Simple string format - create a more structured display
+                const title = technique;
+                techniqueElement.innerHTML = `
+                    <h6 class="technique-title">${title}</h6>
+                    <p>Apply this technique to improve your study effectiveness.</p>
+                `;
             } else {
                 // Object format with potentially more details
-                let techniqueContent = `
-                    <h6 class="technique-title">${technique.name || technique.title || 'Study Technique'}</h6>
-                `;
+                const title = technique.name || technique.title || 'Study Technique';
+                const description = technique.description || '';
+                const benefits = technique.benefits || '';
                 
-                if (technique.description) {
-                    techniqueContent += `<p>${technique.description}</p>`;
+                let techniqueContent = `<h6 class="technique-title">${title}</h6>`;
+                
+                if (description) {
+                    techniqueContent += `<p>${description}</p>`;
                 }
                 
                 // Add steps if available
@@ -772,8 +605,8 @@ function generateFallbackTechniques(subject, learningStyle) {
                     techniqueContent += '</ol>';
                 }
                 
-                if (technique.benefits) {
-                    techniqueContent += `<p><strong>Benefits:</strong> ${technique.benefits}</p>`;
+                if (benefits) {
+                    techniqueContent += `<p><strong>Benefits:</strong> ${benefits}</p>`;
                 }
                 
                 techniqueElement.innerHTML = techniqueContent;
@@ -819,7 +652,7 @@ function generateFallbackTechniques(subject, learningStyle) {
     function renderSessions(sessions) {
         if (!sessionsList) return;
         
-        if (sessions.length === 0) {
+        if (!sessions || sessions.length === 0) {
             sessionsList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-clock"></i>
@@ -829,35 +662,76 @@ function generateFallbackTechniques(subject, learningStyle) {
             return;
         }
         
-        sessionsList.innerHTML = '';
+        let html = '';
+        
         sessions.forEach(session => {
-            const sessionElement = document.createElement('div');
-            sessionElement.className = 'session-item';
+            const date = new Date(session.start_time).toLocaleString();
+            const active = session.end_time ? false : true;
             
             // Calculate duration
-            let durationText = 'In progress';
+            let duration = '...';
             if (session.end_time) {
-                const duration = session.duration_minutes || 0;
-                const hours = Math.floor(duration / 60);
-                const minutes = Math.round(duration % 60);
-                durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                const start = new Date(session.start_time);
+                const end = new Date(session.end_time);
+                const durationMs = end - start;
+                const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                duration = `${hours}h ${minutes}m`;
             }
             
-            // Format date
-            const date = new Date(session.start_time).toLocaleDateString();
-            const time = new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            sessionElement.innerHTML = `
-                <div class="session-header">
-                    <div class="session-title">${session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}</div>
-                    <div class="session-duration">${durationText}</div>
-                </div>
-                <div class="session-meta">
-                    ${date} at ${time}
+            html += `
+                <div class="session-item" data-id="${session.id}">
+                    <div class="session-header">
+                        <div class="session-title">${session.session_type}</div>
+                        <div class="session-duration">${duration}</div>
+                    </div>
+                    <div class="session-meta">
+                        ${date}
+                        ${session.paused ? '<span class="badge bg-warning">Paused</span>' : ''}
+                        ${active && !session.paused ? '<span class="badge bg-success">Active</span>' : ''}
+                    </div>
+                    ${session.notes ? `<div class="session-notes">${session.notes}</div>` : ''}
+                    <div class="session-actions">
+                        ${active && !session.paused ? `
+                            <button class="session-action-btn pause" data-id="${session.id}" title="Pause">
+                                <i class="fas fa-pause"></i> Pause
+                            </button>
+                        ` : ''}
+                        ${session.paused ? `
+                            <button class="session-action-btn resume" data-id="${session.id}" title="Resume">
+                                <i class="fas fa-play"></i> Resume
+                            </button>
+                        ` : ''}
+                        <button class="session-action-btn delete" data-id="${session.id}" title="Delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
                 </div>
             `;
-            
-            sessionsList.appendChild(sessionElement);
+        });
+        
+        sessionsList.innerHTML = html;
+        
+        // Add event listeners for action buttons
+        document.querySelectorAll('.session-action-btn.pause').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sessionId = this.dataset.id;
+                pauseStudySession(sessionId);
+            });
+        });
+        
+        document.querySelectorAll('.session-action-btn.resume').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sessionId = this.dataset.id;
+                resumeStudySession(sessionId);
+            });
+        });
+        
+        document.querySelectorAll('.session-action-btn.delete').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sessionId = this.dataset.id;
+                deleteStudySession(sessionId);
+            });
         });
     }
     
@@ -1024,8 +898,9 @@ function generateFallbackTechniques(subject, learningStyle) {
     
     // Save plan button
     if (savePlanBtn) {
-        savePlanBtn.addEventListener('click', function() {
-            showNotification('Study plan saved successfully', 'success');
+        savePlanBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            savePlan();
         });
     }
     
@@ -1134,6 +1009,396 @@ function generateFallbackTechniques(subject, learningStyle) {
                     notificationsContainer.remove();
                 }
             }, 300);
+        }
+    }
+    
+    // Pause a study session
+    async function pauseStudySession(sessionId) {
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}/pause`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Check if this is the active session
+            if (activeSessionId === parseInt(sessionId)) {
+                // Stop the timer
+                stopTimer();
+                // Close the modal
+                closeSessionModal();
+                // Reset active session
+                activeSessionId = null;
+            }
+            
+            // Reload sessions
+            await loadSessions();
+            
+            showNotification('Session paused', 'success');
+        } catch (error) {
+            console.error('Error pausing session:', error);
+            showNotification('Failed to pause session', 'danger');
+        }
+    }
+    
+    // Resume a study session
+    async function resumeStudySession(sessionId) {
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}/resume`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Set as active session
+            activeSessionId = parseInt(sessionId);
+            
+            // Get session data
+            const sessionsResponse = await fetch('/api/study/sessions');
+            const sessions = await sessionsResponse.json();
+            const session = sessions.find(s => s.id === parseInt(sessionId));
+            
+            if (session) {
+                // Show modal with active session
+                sessionModal.classList.add('show');
+                sessionFormContainer.style.display = 'none';
+                activeSessionContainer.style.display = 'block';
+                
+                // Set session info
+                activeSessionType.textContent = session.session_type;
+                activeSessionStart.textContent = new Date(session.start_time).toLocaleString();
+                if (session.notes) {
+                    activeSessionNotes.value = session.notes;
+                }
+                
+                // Start timer
+                sessionStartTime = new Date(session.start_time);
+                startTimer();
+            }
+            
+            // Reload sessions
+            await loadSessions();
+            
+            showNotification('Session resumed', 'success');
+        } catch (error) {
+            console.error('Error resuming session:', error);
+            showNotification('Failed to resume session', 'danger');
+        }
+    }
+    
+    // Delete a study session
+    async function deleteStudySession(sessionId) {
+        if (!confirm('Are you sure you want to delete this study session?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/study/sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Check if this is the active session
+            if (activeSessionId === parseInt(sessionId)) {
+                // Stop the timer
+                stopTimer();
+                // Close the modal
+                closeSessionModal();
+                // Reset active session
+                activeSessionId = null;
+            }
+            
+            // Reload sessions
+            await loadSessions();
+            
+            showNotification('Session deleted', 'success');
+        } catch (error) {
+            console.error('Error deleting session:', error);
+            showNotification('Failed to delete session', 'danger');
+        }
+    }
+    
+    // Clear all study sessions
+    async function clearAllSessions() {
+        if (!confirm('Are you sure you want to delete ALL study sessions? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/study/sessions/clear', {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Stop any active session
+            if (activeSessionId) {
+                stopTimer();
+                closeSessionModal();
+                activeSessionId = null;
+            }
+            
+            // Reload sessions
+            await loadSessions();
+            
+            showNotification('All sessions cleared', 'success');
+        } catch (error) {
+            console.error('Error clearing sessions:', error);
+            showNotification('Failed to clear sessions', 'danger');
+        }
+    }
+
+    // Save study plan
+    async function savePlan() {
+        if (!planResult || !planResult.style.display || planResult.style.display === 'none') {
+            showNotification('No plan to save. Please generate a plan first.', 'warning');
+            return;
+        }
+        
+        try {
+            // Get current plan data
+            const subject = document.getElementById('subject').value;
+            const planData = {
+                subject: subject,
+                overview: planOverview ? planOverview.innerHTML : '',
+                weeks: planWeeks ? planWeeks.innerHTML : '',
+                techniques: planTechniques ? planTechniques.innerHTML : '',
+                milestones: planMilestones ? planMilestones.innerHTML : '',
+                created_at: new Date().toISOString()
+            };
+            
+            const response = await fetch('/api/study/plans', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(planData)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Reload saved plans to update the UI
+            await loadSavedPlans();
+            
+            showNotification('Study plan saved successfully', 'success');
+        } catch (error) {
+            console.error('Error saving study plan:', error);
+            showNotification('Failed to save study plan', 'danger');
+        }
+    }
+
+    // Clear all plans button
+    if (clearAllPlansBtn) {
+        clearAllPlansBtn.addEventListener('click', function() {
+            clearAllPlans();
+        });
+    }
+
+    // Load saved plans
+    async function loadSavedPlans() {
+        if (!plansList) return;
+        
+        try {
+            const response = await fetch('/api/study/plans', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            renderSavedPlans(data.plans || []);
+        } catch (error) {
+            console.error('Error loading saved plans:', error);
+            if (plansList) {
+                plansList.innerHTML = '<div class="error-message">Failed to load saved plans</div>';
+            }
+        }
+    }
+
+    // Render saved plans
+    function renderSavedPlans(plans) {
+        if (!plansList) return;
+        
+        if (!plans || plans.length === 0) {
+            plansList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-clock"></i>
+                    <p>No saved plans found.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        
+        plans.forEach(plan => {
+            const date = new Date(plan.created_at).toLocaleString();
+            
+            html += `
+                <div class="plan-item" data-id="${plan.id}">
+                    <div class="plan-header">
+                        <div class="plan-title">${plan.subject}</div>
+                        <div class="plan-date">${date}</div>
+                    </div>
+                    <div class="plan-actions">
+                        <button class="plan-action-btn view" data-id="${plan.id}" title="View">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="plan-action-btn delete" data-id="${plan.id}" title="Delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        plansList.innerHTML = html;
+        
+        // Add event listeners for action buttons
+        document.querySelectorAll('.plan-action-btn.view').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const planId = this.dataset.id;
+                viewPlan(planId);
+            });
+        });
+        
+        document.querySelectorAll('.plan-action-btn.delete').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const planId = this.dataset.id;
+                deletePlan(planId);
+            });
+        });
+    }
+
+    // View a plan
+    async function viewPlan(planId) {
+        if (!planId) return;
+        
+        try {
+            const response = await fetch(`/api/study/plans/${planId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            // Display plan directly from saved HTML strings
+            if (!planOverview || !planWeeks || !planTechniques || !planMilestones) return;
+            
+            // Set content directly from saved HTML
+            planOverview.innerHTML = data.overview || '<p>No overview available</p>';
+            planWeeks.innerHTML = data.weeks || '<p>No weekly schedule available</p>';
+            planTechniques.innerHTML = data.techniques || '<p>No techniques available</p>';
+            planMilestones.innerHTML = data.milestones || '<p>No milestones available</p>';
+            
+            // Show the plan result container
+            planResult.style.display = 'block';
+            showNotification('Plan loaded successfully', 'success');
+        } catch (error) {
+            console.error('Error loading plan:', error);
+            showNotification('Failed to load plan', 'danger');
+        }
+    }
+
+    // Delete a plan
+    async function deletePlan(planId) {
+        if (!confirm('Are you sure you want to delete this plan? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/study/plans/${planId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Reload saved plans
+            await loadSavedPlans();
+            
+            showNotification('Plan deleted', 'success');
+        } catch (error) {
+            console.error('Error deleting plan:', error);
+            showNotification('Failed to delete plan', 'danger');
+        }
+    }
+
+    // Clear all plans
+    async function clearAllPlans() {
+        if (!confirm('Are you sure you want to delete ALL saved plans? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/study/plans/clear', {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            // Reload saved plans
+            await loadSavedPlans();
+            
+            showNotification('All plans cleared', 'success');
+        } catch (error) {
+            console.error('Error clearing plans:', error);
+            showNotification('Failed to clear plans', 'danger');
         }
     }
 });

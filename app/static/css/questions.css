@@ -38,6 +38,16 @@
     height: 700px;
 }
 
+/* Add styles to fix the quiz header text visibility */
+.quiz-card .card-header h3 {
+    color: white; /* Make header text white for better contrast */
+}
+
+.quiz-card .card-header .badge {
+    background-color: white;
+    color: var(--primary-color); /* Reverse the colors for the badge */
+}
+
 .quiz-container {
     flex: 1;
     overflow-y: auto;
@@ -437,15 +447,7 @@
 }
 
 .btn-outline-danger {
-    color: var(--danger-color);
-    border: 1px solid var(--danger-color);
-    background-color: transparent;
-    transition: all var(--transition-fast);
-}
-
-.btn-outline-danger:hover {
-    background-color: var(--danger-color);
-    color: white;
+    /* Các thuộc tính đã được khai báo trong global styles.css */
 }
 
 .btn-sm {
@@ -506,4 +508,23 @@
     background-color: var(--primary-color-light);
     border-radius: var(--radius-md);
     text-align: center;
+}
+
+#quiz-info {
+    font-weight: 500;
+}
+
+#quiz-info .badge {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+/* Style for the Clear All button - matching other sections */
+#clear-history-btn {
+    /* Các thuộc tính đã được khai báo trong global styles.css */
+}
+
+/* Override any default button styles */
+.btn-outline-danger {
+    /* Các thuộc tính đã được khai báo trong global styles.css */
 } 

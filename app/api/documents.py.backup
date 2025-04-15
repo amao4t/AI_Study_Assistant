@@ -1,0 +1,66 @@
+@documents_bp.route('/process_image', methods=['POST'])
+@login_required
+def process_image():
+    """Process an image uploaded directly from chat"""
+    try:
+        if 'file' not in request.files:
+            raise APIError("No file provided", code=400)
+            
+        file = request.files['file']
+        if not file or not file.filename:
+            raise APIError("Invalid file", code=400)
+            
+        # Check if it's an image file
+        filename = file.filename
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'}
+        if '.' not in filename or filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            raise APIError("File type not allowed. Only images are accepted.", code=400)
+            
+        # Process the image with OCR
+        document_processor = current_app.services.get('document_processor')
+        if not document_processor:
+            raise APIError("Document processing service unavailable", code=503)
+            
+        # Save the image to a temporary file
+        import tempfile
+        import os
+        
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, filename)
+        file.save(temp_path)
+        
+        # Extract text using OCR
+        extracted_text = document_processor.extract_text_from_image(temp_path)
+        
+        # Try enhanced image analysis if OCR yields little text
+        if len(extracted_text.strip()) < 50:
+            try:
+                enhanced_text = document_processor.analyze_image_content(temp_path)
+                if len(enhanced_text.strip()) > len(extracted_text.strip()):
+                    extracted_text = enhanced_text
+            except Exception as e:
+                logger.warning(f"Enhanced image analysis failed: {str(e)}")
+        
+        # Clean up the temp file
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+            
+        log_api_access("process_image", True, {
+            "filename": filename,
+            "text_length": len(extracted_text)
+        })
+            
+        return jsonify({
+            "success": True,
+            "text": extracted_text
+        }), 200
+        
+    except APIError as e:
+        # Re-raise APIError to be handled by the global handler
+        raise
+    except Exception as e:
+        logger.exception("Error processing image")
+        log_api_access("process_image", False, {})
+        raise APIError.from_exception(e, default_message="Failed to process image") 

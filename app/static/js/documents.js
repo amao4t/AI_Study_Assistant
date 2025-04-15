@@ -552,52 +552,44 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Clear document selection
-    const clearSelectionBtn = document.getElementById('clear-selection-btn');
-    if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', function() {
-            if (!activeDocumentId) return;
-            
-            // Reset active document
-            activeDocumentId = null;
-            activeDocumentName = '';
-            
-            // Update UI
-            document.getElementById('active-document-info').innerHTML = `
-                <span class="badge bg-primary">No document selected</span>
-            `;
-            
-            // Remove active class from document items
-            document.querySelectorAll('.document-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // Disable document-specific buttons only
-            viewDocumentBtn.disabled = true;
-            regenerateSummaryBtn.disabled = true;
-            summarizeBtn.disabled = true;
-            clearSelectionBtn.disabled = true;
-            
-            // Keep chat input enabled for general chatting
-            // documentChatInput.disabled = false;
-            // document.querySelector('.chat-send-btn').disabled = false;
-            
-            // Clear chat
-            clearChat();
-            
-            // Add default message
-            addMessageToChat('You can ask me anything or select a document for document-specific assistance.', 'bot');
-            
-            // Clear document preview
-            documentPreviewContent.innerHTML = `
-                <div class="document-placeholder">
-                    <div class="document-placeholder-icon">
-                        <i class="fas fa-file-alt"></i>
-                    </div>
-                    <h3>Document Preview</h3>
-                    <p>Select a document from the library to view its contents.</p>
-                </div>
-            `;
+    function clearDocumentSelection() {
+        if (!activeDocumentId) return;
+        
+        // Reset active document
+        activeDocumentId = null;
+        activeDocumentName = '';
+        
+        // Update UI
+        document.getElementById('active-document-info').innerHTML = `
+            <span class="badge bg-primary">No document selected</span>
+        `;
+        
+        // Remove active class from document items
+        document.querySelectorAll('.document-item').forEach(item => {
+            item.classList.remove('active');
         });
+        
+        // Disable document-specific buttons
+        viewDocumentBtn.disabled = true;
+        regenerateSummaryBtn.disabled = true;
+        summarizeBtn.disabled = true;
+        
+        // Clear chat
+        clearChat();
+        
+        // Add default message
+        addMessageToChat('You can ask me anything or select a document for document-specific assistance.', 'bot');
+        
+        // Clear document preview
+        documentPreviewContent.innerHTML = `
+            <div class="document-placeholder">
+                <div class="document-placeholder-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3>Document Preview</h3>
+                <p>Select a document from the library to view its contents.</p>
+            </div>
+        `;
     }
     
     // Clear all documents
@@ -653,10 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Reset active document if it was deleted
                 if (activeDocumentId) {
-                    // Trigger clear selection
-                    if (clearSelectionBtn) {
-                        clearSelectionBtn.click();
-                    }
+                    clearDocumentSelection();
                 }
                 
                 // Reload documents
@@ -771,11 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // Reset active document if it was deleted
                             if (activeDocumentId === docId) {
-                                // Trigger clear selection
-                                const clearSelectionBtn = document.getElementById('clear-selection-btn');
-                                if (clearSelectionBtn) {
-                                    clearSelectionBtn.click();
-                                }
+                                clearDocumentSelection();
                             }
                             
                             // Reload documents

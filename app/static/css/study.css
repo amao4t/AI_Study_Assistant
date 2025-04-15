@@ -6,19 +6,24 @@
 }
 
 .dashboard-header {
+    padding: 15px 10px;
     margin-bottom: var(--spacing-xl);
 }
 
 .dashboard-header h1 {
-    color: var(--primary-color);
-    margin-bottom: var(--spacing-xs);
-    transition: color var(--transition-normal);
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    color: #0E8388;
+    font-weight: 600;
 }
 
 .dashboard-header p {
-    color: var(--text-secondary);
-    font-size: var(--font-size-lg);
-    transition: color var(--transition-normal);
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 0;
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: 700px;
 }
 
 /* Layout */
@@ -54,18 +59,15 @@
     background-color: var(--bg-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
-    border-left: 3px solid transparent;
 }
 
 .tool-item:hover {
-    background-color: var(--bg-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    background-color: var(--primary-light);
 }
 
 .tool-item.active {
-    background-color: var(--bg-hover);
-    border-left: 3px solid var(--primary-color);
+    background-color: var(--primary-light);
+    border-left: 5px solid var(--primary-color);
 }
 
 .tool-icon {
@@ -78,7 +80,6 @@
     color: var(--primary-color);
     border-radius: var(--radius-full);
     font-size: var(--font-size-lg);
-    transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .tool-info {
@@ -88,14 +89,12 @@
 .tool-info h4 {
     margin-bottom: var(--spacing-xs);
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .tool-info p {
     margin: 0;
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
 }
 
 /* Sessions & Plans */
@@ -103,10 +102,6 @@
 .plans-list {
     max-height: 300px;
     overflow-y: auto;
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    padding: 5px;
-    transition: background-color var(--transition-normal);
 }
 
 .session-item,
@@ -114,17 +109,7 @@
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-sm);
     border-radius: var(--radius-md);
-    background-color: var(--bg-color);
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-    border-left: 3px solid var(--primary-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.session-item:hover,
-.plan-item:hover {
-    background-color: var(--bg-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    background-color: var(--bg-secondary);
 }
 
 .session-header,
@@ -139,14 +124,12 @@
 .plan-title {
     font-weight: 600;
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .session-duration,
 .plan-date {
     font-size: var(--font-size-xs);
     color: var(--primary-color);
-    transition: color var(--transition-normal);
 }
 
 .session-meta,
@@ -191,17 +174,12 @@
     padding: var(--spacing-xl);
     color: var(--text-secondary);
     text-align: center;
-    transition: color var(--transition-normal);
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-md);
 }
 
 .empty-state i {
     font-size: 2rem;
     margin-bottom: var(--spacing-md);
     opacity: 0.5;
-    color: var(--primary-color);
-    transition: color var(--transition-normal);
 }
 
 /* Plan Results */
@@ -211,7 +189,6 @@
     margin-top: var(--spacing-xl);
     padding-top: var(--spacing-lg);
     border-top: 1px solid var(--border-color);
-    transition: border-color var(--transition-normal);
 }
 
 .plan-overview {
@@ -219,7 +196,6 @@
     background-color: var(--bg-secondary);
     border-radius: var(--radius-md);
     margin-top: var(--spacing-md);
-    transition: background-color var(--transition-normal);
 }
 
 .plan-week {
@@ -227,7 +203,6 @@
     margin-bottom: var(--spacing-md);
     background-color: var(--bg-secondary);
     border-radius: var(--radius-md);
-    transition: background-color var(--transition-normal);
 }
 
 .plan-week-header {
@@ -244,15 +219,6 @@
     margin-bottom: var(--spacing-md);
     background-color: var(--bg-secondary);
     border-radius: var(--radius-md);
-    transition: background-color var(--transition-normal), transform var(--transition-normal);
-    border: 1px solid var(--border-color);
-}
-
-.technique-item:hover,
-.resource-item:hover,
-.milestone-item:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
 }
 
 .technique-title,
@@ -261,7 +227,6 @@
     font-weight: 600;
     margin-bottom: var(--spacing-xs);
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .resource-meta {
@@ -270,7 +235,6 @@
     margin-bottom: var(--spacing-xs);
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
 }
 
 /* Session Modal */
@@ -285,26 +249,16 @@
     z-index: 1000;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(2px);
-    opacity: 0;
-    transition: opacity var(--transition-normal);
 }
 
 .modal.show {
     display: flex;
-    opacity: 1;
 }
 
 .modal-dialog {
     width: 100%;
     max-width: 500px;
     margin: auto;
-    transform: translateY(-20px);
-    transition: transform var(--transition-normal);
-}
-
-.modal.show .modal-dialog {
-    transform: translateY(0);
 }
 
 .modal-content {
@@ -312,8 +266,6 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     overflow: hidden;
-    transition: background-color var(--transition-normal);
-    border: 1px solid var(--border-color);
 }
 
 .modal-header {
@@ -322,7 +274,6 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--border-color);
-    transition: border-color var(--transition-normal);
 }
 
 .modal-body {
@@ -335,13 +286,6 @@
     color: var(--text-secondary);
     cursor: pointer;
     font-size: var(--font-size-lg);
-    transition: color var(--transition-fast);
-    border-radius: var(--radius-sm);
-}
-
-.modal-close:hover {
-    color: var(--danger-color);
-    background-color: rgba(220, 53, 69, 0.1);
 }
 
 .session-timer {
@@ -355,18 +299,28 @@
     font-weight: 700;
     color: var(--primary-color);
     font-family: monospace;
-    transition: color var(--transition-normal);
 }
 
 /* Form Elements */
 textarea {
     min-height: 100px;
     resize: vertical;
-    color: var(--text-color);
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    transition: background-color var(--transition-normal), color var(--transition-normal), border-color var(--transition-normal);
+}
+
+/* Animation */
+.tool-panel {
+    animation: fadeIn var(--transition-normal);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Study Plan Enhancements */
@@ -374,22 +328,20 @@ textarea {
     background-color: var(--bg-secondary);
     padding: 15px;
     border-left: 4px solid var(--primary-color);
-    border-radius: var(--radius-md);
+    border-radius: 4px;
     margin-bottom: 20px;
     line-height: 1.6;
     font-size: 16px;
-    transition: background-color var(--transition-normal), border-color var(--transition-normal);
-    color: var(--text-color);
+    transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .plan-week {
     background-color: var(--bg-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
     margin-bottom: 20px;
     overflow: hidden;
     transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
-    border: 1px solid var(--border-color);
 }
 
 .plan-week-header {
@@ -399,7 +351,6 @@ textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background-color var(--transition-normal);
 }
 
 .plan-week-header h6 {
@@ -426,7 +377,6 @@ textarea {
 
 .plan-week > p strong {
     color: var(--primary-color);
-    transition: color var(--transition-normal);
 }
 
 .plan-week ul {
@@ -439,8 +389,7 @@ textarea {
     position: relative;
     padding: 8px 0 8px 25px;
     border-bottom: 1px solid var(--border-color);
-    transition: border-color var(--transition-normal), color var(--transition-normal);
-    color: var(--text-color);
+    transition: border-color var(--transition-normal);
 }
 
 .plan-week ul li:last-child {
@@ -451,26 +400,24 @@ textarea {
     content: "✓";
     position: absolute;
     left: 0;
-    color: var(--primary-color);
+    color: #0E8388;
     font-weight: bold;
-    transition: color var(--transition-normal);
 }
 
 /* Study Techniques Styling */
 .technique-item {
     background-color: var(--bg-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
     margin-bottom: 15px;
     padding: 15px;
     position: relative;
     transition: transform 0.2s, box-shadow 0.2s, background-color var(--transition-normal);
-    border: 1px solid var(--border-color);
 }
 
 .technique-item:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .technique-item h6 {
@@ -480,7 +427,7 @@ textarea {
     margin-bottom: 10px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-color);
-    transition: color var(--transition-normal), border-color var(--transition-normal);
+    transition: border-color var(--transition-normal), color var(--transition-normal);
 }
 
 .technique-item p {
@@ -499,8 +446,6 @@ textarea {
 .technique-item ul {
     padding-left: 25px;
     margin-bottom: 15px;
-    color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .technique-item li {
@@ -510,8 +455,8 @@ textarea {
 /* Milestones Styling */
 .milestone-item {
     background-color: var(--bg-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
     margin-bottom: 10px;
     padding: 12px 15px;
     border-left: 4px solid var(--primary-color);
@@ -526,6 +471,16 @@ textarea {
     transition: color var(--transition-normal);
 }
 
+.milestone-item:before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: #2B7A78;
+}
+
 /* Plan actions styling */
 .plan-actions {
     margin-top: 20px;
@@ -535,34 +490,27 @@ textarea {
 
 .plan-actions button {
     padding: 8px 16px;
-    border-radius: var(--radius-md);
+    border-radius: 4px;
     font-weight: 500;
-    transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 #save-plan-btn {
-    background-color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    color: white;
+    background-color: #0E8388;
+    border-color: #0E8388;
 }
 
 #save-plan-btn:hover {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    background-color: #0a6568;
+    border-color: #0a6568;
 }
 
 #print-plan-btn {
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
-    background-color: transparent;
+    border: 1px solid #0E8388;
+    color: #0E8388;
 }
 
 #print-plan-btn:hover {
-    background-color: var(--bg-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    background-color: #f0f8f8;
 }
 
 /* Study Dashboard Improvements */
@@ -572,10 +520,9 @@ textarea {
     padding-bottom: 0.5rem;
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--primary-color);
-    border-bottom: 2px solid var(--border-color);
+    color: #0E8388;
+    border-bottom: 2px solid #f0f0f0;
     position: relative;
-    transition: color var(--transition-normal);
 }
 
 .dashboard-content h5:after {
@@ -585,42 +532,23 @@ textarea {
     bottom: -2px;
     width: 80px;
     height: 2px;
-    background-color: var(--primary-color);
-    transition: background-color var(--transition-normal);
-}
-
-.card-header {
-    background-color: var(--primary-color);
-    color: #ffffff;
-    padding: 15px;
-    border-top-left-radius: var(--radius-md);
-    border-top-right-radius: var(--radius-md);
-}
-
-.card-header h3 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #ffffff;
-    margin: 0;
-    transition: color var(--transition-normal);
+    background-color: #0E8388;
 }
 
 .dashboard-content .card-header h3 {
     font-size: 1.4rem;
     font-weight: 600;
-    color: #ffffff;
+    color: #0E8388;
     margin: 0;
-    transition: color var(--transition-normal);
 }
 
 .plan-result {
     background-color: var(--bg-color);
-    border-radius: var(--radius-lg);
+    border-radius: 8px;
     box-shadow: var(--shadow-md);
     padding: 20px;
     margin-top: 20px;
     transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
-    border: 1px solid var(--border-color);
 }
 
 .plan-result h4 {
@@ -630,6 +558,68 @@ textarea {
     margin-bottom: 1.5rem;
     text-align: center;
     transition: color var(--transition-normal);
+}
+
+/* Tool selection improvements */
+.tool-item {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    padding: 15px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-color);
+    box-shadow: var(--shadow-sm);
+    transition: background-color var(--transition-normal), box-shadow var(--transition-normal), transform 0.3s ease;
+}
+
+.tool-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.tool-item.active {
+    background-color: var(--primary-color);
+}
+
+.tool-item.active .tool-info h4,
+.tool-item.active .tool-info p {
+    color: white;
+}
+
+.tool-item.active .tool-icon {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.tool-icon {
+    background-color: var(--bg-secondary);
+    color: var(--primary-color);
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 1.4rem;
+    transition: all 0.3s ease, background-color var(--transition-normal);
+}
+
+.tool-info h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 5px 0;
+    color: var(--text-color);
+    transition: all 0.3s ease, color var(--transition-normal);
+}
+
+.tool-info p {
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--text-secondary);
+    transition: all 0.3s ease, color var(--transition-normal);
 }
 
 /* Form improvements */
@@ -645,131 +635,661 @@ textarea {
 }
 
 .form-control {
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     padding: 0.6rem 1rem;
     border: 1px solid var(--border-color);
-    transition: all 0.2s ease;
     background-color: var(--bg-color);
     color: var(--text-color);
+    transition: all 0.2s ease, border-color var(--transition-normal), 
+                background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .form-control:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(14, 131, 136, 0.25);
+    background-color: var(--bg-color);
 }
 
-[data-theme="dark"] .form-control:focus {
-    box-shadow: 0 0 0 2px rgba(22, 181, 187, 0.4);
+.btn-primary {
+    background-color: #0E8388;
+    border-color: #0E8388;
+    border-radius: 6px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
-/* Focus states for accessibility */
-button:focus, 
-a:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(14, 131, 136, 0.3);
-}
-
-[data-theme="dark"] button:focus, 
-[data-theme="dark"] a:focus {
-    box-shadow: 0 0 0 2px rgba(22, 181, 187, 0.4);
+.btn-primary:hover {
+    background-color: #0a6568;
+    border-color: #0a6568;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Print-friendly enhancements */
 @media print {
-    body {
-        background-color: white !important;
-        color: black !important;
-    }
-    
     .tool-item, .card-header, .tools-list, 
-    .sessions-list, .plans-list, .plan-actions,
-    .dashboard-header, .empty-state, form, 
-    .btn, .modal {
+    .sessions-list, .plans-list, .plan-actions {
         display: none !important;
     }
     
-    .plan-result, .resources-result, .techniques-result {
+    .plan-result {
         display: block !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        border: none !important;
-        margin-top: 1cm !important;
+        box-shadow: none;
+        padding: 0;
     }
     
-    .plan-week, .technique-item, .milestone-item, .resource-item {
-        box-shadow: none !important;
-        border: 1px solid #ddd !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-        background-color: white !important;
-        color: black !important;
+    .plan-week {
+        box-shadow: none;
+        border: 1px solid #ddd;
+        break-inside: avoid;
     }
     
-    .plan-week-header {
-        background-color: #f5f5f5 !important;
-        color: black !important;
-        border-bottom: 1px solid #ddd !important;
-    }
-    
-    .plan-week > p strong, 
-    .technique-item h6, 
-    .milestone-item h6, 
-    .plan-result h4 {
-        color: #333 !important;
-    }
-    
-    .plan-week ul li:before {
-        color: #333 !important;
-    }
-    
-    a {
-        text-decoration: underline !important;
-        color: #000 !important;
-    }
-    
-    a[href]:after {
-        content: " (" attr(href) ")";
-        font-size: 0.8em;
+    .technique-item, .milestone-item {
+        box-shadow: none;
+        border: 1px solid #ddd;
+        break-inside: avoid;
     }
 }
 
-/* Responsive optimizations */
-@media (max-width: 768px) {
-    .row {
-        flex-direction: column;
-    }
-    
-    .col-md-4, .col-md-8 {
-        min-width: 100%;
-    }
-    
-    .plan-actions {
-        flex-direction: column;
-    }
-    
-    .plan-actions button {
-        width: 100%;
-    }
-    
-    .modal-dialog {
-        width: 95%;
-    }
+/* ===============================
+   STUDY ASSISTANT SPECIFIC STYLES
+================================ */
+
+/* Study Tools Section */
+.study-tools-section {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    width: 100%;
 }
 
-/* For reduced motion */
-@media (prefers-reduced-motion: reduce) {
-    .tool-item:hover,
-    .session-item:hover,
-    .plan-item:hover,
-    .technique-item:hover,
-    .resource-item:hover,
-    .milestone-item:hover,
-    #save-plan-btn:hover,
-    #print-plan-btn:hover {
-        transform: none !important;
-    }
-    
-    .tool-panel {
-        animation: none !important;
-    }
+.study-tools-section h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Tools List */
+.tools-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background-color: var(--primary-light);
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.tool-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.tool-item:hover {
+    background-color: rgba(14, 131, 136, 0.1);
+}
+
+.tool-item.active {
+    background-color: rgba(14, 131, 136, 0.1);
+    border-left: 3px solid var(--primary-color);
+}
+
+.tool-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.tool-info {
+    flex: 1;
+}
+
+.tool-info h4 {
+    font-size: 0.95rem;
+    margin: 0;
+    color: #333;
+}
+
+.tool-info p {
+    font-size: 0.85rem;
+    margin: 0;
+    color: #666;
+}
+
+/* Tool panels */
+.tool-panel {
+    display: none;
+}
+
+.tool-panel:first-child {
+    display: block;
+}
+
+#chat-tool.tool-panel {
+    display: block; /* Ensure the chat tool is visible by default */
+}
+
+/* Make sure the chat form and input are properly visible */
+#chat-form {
+    display: flex;
+    width: 100%;
+}
+
+#chat-input {
+    flex: 1;
+}
+
+/* Study Sessions */
+.study-sessions-section {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 15px;
+    margin-top: 20px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.study-sessions-section h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+.sessions-list {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 5px;
+    transition: background-color var(--transition-normal);
+}
+
+.session-item {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    border-left: 3px solid var(--primary-color);
+    transition: all 0.2s, background-color var(--transition-normal);
+    box-shadow: var(--shadow-sm);
+}
+
+.session-item:hover {
+    background-color: var(--primary-light);
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.session-title {
+    font-weight: 500;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.session-duration {
+    font-size: 0.75rem;
+    color: var(--primary-color);
+}
+
+.session-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.session-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.session-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 2px 5px;
+}
+
+.session-action-btn:hover {
+    color: var(--primary-color);
+}
+
+.session-action-btn.delete:hover {
+    color: var(--danger-color);
+}
+
+.session-timer {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.timer-display {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: monospace;
+}
+
+/* Study Dashboard */
+.dashboard-content {
+    padding: 0 10px;
+}
+
+#start-session-btn {
+    width: 100%;
+    background-color: var(--primary-color);
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+#start-session-btn:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Study Plan */
+.create-study-plan {
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 20px;
+    border: none;
+    transition: background-color var(--transition-normal);
+}
+
+.create-study-plan h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: var(--text-color);
+    transition: color var(--transition-normal);
+}
+
+.plan-result,
+.resources-result,
+.techniques-result {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.plan-overview {
+    padding: 10px;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.plan-week {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.plan-week-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.plans-list {
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 5px;
+    transition: background-color var(--transition-normal);
+}
+
+.technique-item,
+.resource-item,
+.milestone-item {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.technique-title,
+.resource-title,
+.milestone-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-color);
+}
+
+.plan-item {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--primary-color);
+    transition: all var(--transition-normal);
+}
+
+.plan-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Chat and Summary UI */
+.summary-content {
+    line-height: 1.6;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-secondary);
+}
+
+/* Fix for the card-body padding in chat card */
+.chat-card .card-body {
+    padding: 0 !important;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure the chat footer doesn't shift when container gets full */
+.chat-card .card-footer {
+    flex-shrink: 0;
+}
+
+/* Quiz styling */
+.quiz-score {
+    background-color: var(--primary-light);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    transition: background-color var(--transition-normal);
+}
+  
+.quiz-score h4 {
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-sm);
+}
+  
+.result-correct {
+    color: var(--success-color);
+    font-weight: bold;
+    margin-top: var(--spacing-sm);
+}
+  
+.result-incorrect {
+    color: var(--danger-color);
+    font-weight: bold;
+    margin-top: var(--spacing-sm);
+}
+  
+.result-partial {
+    color: var(--warning-color);
+    font-weight: bold;
+    margin-top: var(--spacing-sm);
+}
+  
+.result-warning {
+    color: var(--warning-color);
+    font-weight: bold;
+    margin-top: var(--spacing-sm);
+}
+  
+.correct-answer {
+    margin-top: var(--spacing-xs);
+    font-style: italic;
+}
+  
+/* Style the submit button */
+#submit-quiz-btn {
+    display: block;
+    margin: 20px auto;
+    padding: var(--spacing-md) var(--spacing-xl);
+}
+  
+/* Make questions with feedback more visible */
+.quiz-question .question-result {
+    border-left: 3px solid transparent;
+    padding-left: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
+  
+.quiz-question .result-correct {
+    border-left-color: var(--success-color);
+}
+  
+.quiz-question .result-incorrect {
+    border-left-color: var(--danger-color);
+}
+  
+.quiz-question .result-partial {
+    border-left-color: var(--warning-color);
+}
+
+/* Dark mode specific overrides */
+[data-theme="dark"] .tool-item {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .session-item,
+[data-theme="dark"] .technique-item,
+[data-theme="dark"] .milestone-item,
+[data-theme="dark"] .plan-week,
+[data-theme="dark"] .plan-result {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .tool-item:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(14, 131, 136, 0.4);
+}
+
+/* Quiz styling improvements for dark mode */
+.quiz-score {
+    background-color: var(--primary-light);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    transition: background-color var(--transition-normal);
+}
+
+/* Dark mode advanced improvements */
+[data-theme="dark"] .empty-state {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-normal);
+}
+
+[data-theme="dark"] .plan-week-header {
+    background-color: #0a6568;
+}
+
+[data-theme="dark"] .plan-week ul li:before {
+    color: #2EE6EB;
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--bg-color);
+    border-color: var(--border-color);
+    transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+[data-theme="dark"] .card-body {
+    background-color: var(--bg-color);
+    transition: background-color var(--transition-normal);
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .btn-primary {
+    background-color: #0a6568;
+    border-color: #0a6568;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background-color: #0E8388;
+    border-color: #0E8388;
+    box-shadow: 0 0 15px rgba(14, 131, 136, 0.4);
+}
+
+[data-theme="dark"] .tool-item:hover {
+    background-color: rgba(14, 131, 136, 0.15);
+}
+
+[data-theme="dark"] .tool-item.active {
+    background-color: #0a6568;
+}
+
+[data-theme="dark"] .quiz-score {
+    background-color: rgba(14, 131, 136, 0.15);
+}
+
+[data-theme="dark"] .plan-overview p {
+    border-left-color: #2EE6EB;
+}
+
+[data-theme="dark"] .session-item:hover,
+[data-theme="dark"] .plan-item:hover,
+[data-theme="dark"] .technique-item:hover {
+    box-shadow: 0 5px 15px rgba(14, 131, 136, 0.2);
+    transform: translateY(-3px);
+}
+
+[data-theme="dark"] .form-control {
+    background-color: rgba(30, 30, 30, 0.8);
+    border-color: #333;
+}
+
+[data-theme="dark"] .form-control:focus {
+    background-color: rgba(30, 30, 30, 0.9);
+    border-color: #0E8388;
+}
+
+/* Improve form inputs and selects in dark mode */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: rgba(30, 30, 30, 0.8);
+    color: var(--text-color);
+    border-color: #333;
+}
+
+[data-theme="dark"] select option {
+    background-color: #1e1e1e;
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .btn-outline {
+    border-color: #0E8388;
+    color: #0E8388;
+}
+
+[data-theme="dark"] .btn-outline:hover {
+    background-color: rgba(14, 131, 136, 0.15);
+    color: #2EE6EB;
+}
+
+/* Q&A specific dark mode improvements */
+[data-theme="dark"] .question-type-toggle {
+    background-color: var(--bg-secondary);
+    border-color: #333;
+}
+
+[data-theme="dark"] .question-card {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .question-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .question-text {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .answer-option {
+    background-color: var(--bg-secondary);
+    border-color: #333;
+}
+
+[data-theme="dark"] .answer-option:hover {
+    background-color: rgba(14, 131, 136, 0.15);
+}
+
+[data-theme="dark"] .answer-option.selected {
+    background-color: rgba(14, 131, 136, 0.3);
+    border-color: #0E8388;
+}
+
+/* Improved empty states in dark mode */
+[data-theme="dark"] .empty-state i {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+/* Saved questions and history in dark mode */
+[data-theme="dark"] .saved-questions-panel {
+    background-color: var(--bg-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .saved-question-item {
+    background-color: var(--bg-secondary);
+    border-color: #333;
+}
+
+/* Study tools section improvements */
+[data-theme="dark"] .study-tools-section {
+    background-color: #0a6568;
+}
+
+[data-theme="dark"] .tools-list {
+    background-color: rgba(14, 131, 136, 0.1);
+}
+
+/* Final polish for contrast and accessibility */
+[data-theme="dark"] .card-header {
+    background-color: #0a6568 !important;
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3 {
+    color: #e0e0e0 !important;
+}
+
+[data-theme="dark"] .badge {
+    background-color: rgba(14, 131, 136, 0.2);
+    color: #2EE6EB;
 } 

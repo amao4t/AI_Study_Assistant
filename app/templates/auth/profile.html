@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - AI Assistant{% endblock %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <div class="avatar-image">
+                    {{ current_user.username[0].upper() }}
+                </div>
+                <div>
+                    <h2>{{ current_user.username }}</h2>
+                    <p>AI Study Assistant Member</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-content">
+            <!-- Profile Menu -->
+            <div class="profile-menu">
+                <a href="#" class="profile-menu-item active">
+                    <i class="fas fa-user"></i> Account Information
+                </a>
+                <a href="#" class="profile-menu-item">
+                    <i class="fas fa-book"></i> Study History
+                </a>
+                <a href="#" class="profile-menu-item">
+                    <i class="fas fa-cog"></i> Preferences
+                </a>
+                <a href="#" class="profile-menu-item">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+            </div>
+            
+            <div class="profile-section">
+                <h3>Personal Information</h3>
+                <div class="profile-info">
+                    <div class="info-group">
+                        <label>Username</label>
+                        <p>{{ current_user.username }}</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Email</label>
+                        <p>{{ current_user.email }}</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Member Since</label>
+                        <p>{{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+                    {% if current_user.last_login %}
+                    <div class="info-group">
+                        <label>Last Login</label>
+                        <p>{{ current_user.last_login.strftime('%B %d, %Y %H:%M') }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="profile-section">
+                <h3>Study Statistics</h3>
+                <div class="profile-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">5</div>
+                        <div class="stat-label">Documents Uploaded</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">Study Sessions</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">87</div>
+                        <div class="stat-label">Questions Answered</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-actions">
+                <a href="{{ url_for('auth_views.edit_profile') }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %} 

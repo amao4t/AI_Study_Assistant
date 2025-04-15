@@ -520,3 +520,43 @@ def chat_with_document():
             "document_id": data.get('document_id') if data else None
         })
         raise APIError.from_exception(e, default_message="Failed to process chat request")
+
+@documents_bp.route('/<int:document_id>/content', methods=['GET'])
+@login_required
+def get_document_content(document_id):
+    """Get the full content of a document"""
+    try:
+        # Verify document exists and belongs to user
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first()
+        if not document:
+            log_api_access("get_document_content", False, {"document_id": document_id})
+            raise APIError("Document not found", code=404)
+        
+        # Get document processor from service container
+        document_processor = current_app.services.get('document_processor')
+        if not document_processor:
+            raise APIError("Document processing service unavailable", code=503)
+            
+        # Get the document text
+        text, error = document_processor.get_document_text(document_id)
+        
+        if error:
+            log_api_access("get_document_content", False, {"document_id": document_id, "error": error})
+            raise APIError(error, code=400)
+        
+        # Update last accessed
+        document.update_last_accessed()
+        
+        log_api_access("get_document_content", True, {"document_id": document_id})
+        return jsonify({
+            'text': text,
+            'document_id': document_id,
+            'document_name': document.original_filename
+        }), 200
+    except APIError:
+        # Re-raise APIError to be handled by the global handler
+        raise
+    except Exception as e:
+        logger.exception("Error getting document content")
+        log_api_access("get_document_content", False, {"document_id": document_id})
+        raise APIError.from_exception(e, default_message="Failed to get document content")

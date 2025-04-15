@@ -1,0 +1,336 @@
+/* ===============================
+   BUTTONS
+================================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-outline {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background-color: var(--secondary-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: var(--text-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    color: white;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+
+.btn-lg {
+    padding: 10px 20px;
+    font-size: 1rem;
+}
+
+.btn-outline-danger {
+    background-color: var(--bg-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-weight: 500;
+    padding: 5px 15px;
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--bg-hover);
+    color: var(--danger-color);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ===============================
+   FORMS
+================================ */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(14, 131, 136, 0.1);
+}
+
+.form-text {
+    display: block;
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+/* Form Validation */
+.is-invalid {
+    border-color: var(--danger-color);
+}
+
+.invalid-feedback {
+    display: block;
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--danger-color);
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.form-check-input {
+    margin-right: 8px;
+}
+
+.form-check-label {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+
+.input-group .form-control {
+    flex: 1;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.input-group .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 42px;
+    padding: 0 var(--spacing-md);
+}
+
+/* ===============================
+   CARDS
+================================ */
+.card {
+    background-color: #fff;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 15px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: var(--primary-color);
+    color: white;
+    position: relative;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600 !important;
+    color: white !important;
+    position: relative;
+    z-index: 2;
+}
+
+/* Create a dark overlay for better text contrast */
+.card-header::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.15);
+    z-index: 1;
+}
+
+.card-body {
+    padding: 15px;
+}
+
+.card-footer {
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+/* ===============================
+   ALERTS
+================================ */
+.alert {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 4px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid var(--warning-color);
+    color: var(--warning-color);
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid var(--danger-color);
+    color: var(--danger-color);
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.1);
+    border-left: 4px solid var(--info-color);
+    color: var(--info-color);
+}
+
+.alert span {
+    flex: 1;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: var(--font-size-md);
+    opacity: 0.7;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+
+/* ===============================
+   BADGES
+================================ */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.bg-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* ===============================
+   EMPTY STATES
+================================ */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+    text-align: center;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+    color: var(--primary-color);
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.9rem;
+} 

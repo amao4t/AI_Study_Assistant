@@ -1,0 +1,123 @@
+/* ===============================
+   RESPONSIVE DESIGN
+================================ */
+@media (max-width: 1200px) {
+    .footer-content {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .footer-logo {
+        grid-column: 1 / -1;
+        margin-bottom: var(--spacing-lg);
+    }
+}
+
+@media (max-width: 992px) {
+    .container {
+        max-width: 95%;
+    }
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+    
+    .nav-links {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-color);
+        flex-direction: column;
+        gap: 0;
+        box-shadow: var(--shadow-md);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height var(--transition-normal);
+    }
+    
+    .nav-links.active {
+        max-height: 300px;
+    }
+    
+    .nav-links li a {
+        display: block;
+        padding: var(--spacing-md);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+    
+    .footer-links {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+    
+    .chat-card {
+        height: 500px;
+    }
+    
+    .chat-container {
+        min-height: 400px;
+    }
+    
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .input-group .form-control,
+    .input-group .btn {
+        width: 100%;
+    }
+    
+    .input-group .btn {
+        margin-top: var(--spacing-sm);
+    }
+}
+
+@media (max-width: 576px) {
+    :root {
+        --header-height: 60px;
+    }
+    
+    .username {
+        display: none;
+    }
+    
+    .auth-buttons {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .card-header {
+        padding: 10px;
+    }
+    
+    .card-body {
+        padding: 10px;
+    }
+    
+    .modal-dialog {
+        max-width: 95%;
+        margin: 0 auto;
+    }
+    
+    .modal-body {
+        padding: var(--spacing-md);
+    }
+    
+    .theme-toggle {
+        bottom: var(--spacing-md);
+        right: var(--spacing-md);
+    }
+    
+    .theme-toggle button {
+        width: 40px;
+        height: 40px;
+        font-size: var(--font-size-md);
+    }
+} 

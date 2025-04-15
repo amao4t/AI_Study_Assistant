@@ -1,0 +1,30 @@
+<!-- Relevant sections from index.html with original routes -->
+
+<div class="flex gap-3 mt-4">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started for Free</a>
+    <a href="#features" class="btn btn-outline btn-lg">Explore Features</a>
+</div>
+
+<div class="feature-card">
+    <div class="feature-icon">
+        <i class="fas fa-file-alt"></i>
+    </div>
+    <h3>AskDOC</h3>
+    <p>Upload your study materials and ask questions directly from the content. Get instant, accurate answers based on your documents.</p>
+    <a href="{{ url_for('main.documents') }}" class="btn btn-primary">Try AskDOC</a>
+</div>
+
+<div class="feature-card">
+    <div class="feature-icon">
+        <i class="fas fa-robot"></i>
+    </div>
+    <h3>AI Assistant</h3>
+    <p>Your intelligent study assistant and coach. Get personalized study plans, tips, and strategies to optimize your learning process.</p>
+    <a href="{{ url_for('main.study') }}" class="btn btn-primary">Meet AI Assistant</a>
+</div>
+
+<div class="cta-content text-center py-5">
+    <h2>Ready to Transform Your Learning Experience?</h2>
+    <p class="mb-4">Join thousands of students who are studying smarter, not harder.</p>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started Today</a>
+</div> 

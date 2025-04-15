@@ -18,7 +18,6 @@
     font-weight: 800;
     margin-bottom: var(--spacing-md);
     color: var(--primary-color);
-    transition: color var(--transition-normal);
 }
 
 .hero-subtitle {
@@ -26,7 +25,6 @@
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xl);
     max-width: 600px;
-    transition: color var(--transition-normal);
 }
 
 .hero-buttons {
@@ -45,7 +43,6 @@
     max-width: 100%;
     height: auto;
     animation: float 3s ease-in-out infinite;
-    will-change: transform;
 }
 
 @keyframes float {
@@ -74,7 +71,6 @@
     font-size: var(--font-size-xxl);
     color: var(--text-color);
     margin-bottom: var(--spacing-sm);
-    transition: color var(--transition-normal);
 }
 
 .section-header p {
@@ -82,7 +78,6 @@
     color: var(--text-secondary);
     max-width: 600px;
     margin: 0 auto;
-    transition: color var(--transition-normal);
 }
 
 .feature-cards {
@@ -101,8 +96,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal), background-color var(--transition-normal);
-    border: 1px solid var(--border-color);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .feature-card:hover {
@@ -121,21 +115,18 @@
     justify-content: center;
     font-size: 2rem;
     margin-bottom: var(--spacing-lg);
-    transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .feature-card h3 {
     font-size: var(--font-size-xl);
     margin-bottom: var(--spacing-md);
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .feature-card p {
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xl);
     flex-grow: 1;
-    transition: color var(--transition-normal);
 }
 
 /* How It Works Section */
@@ -145,7 +136,6 @@
     border-radius: var(--radius-lg);
     margin: var(--spacing-xl) 0;
     padding: var(--spacing-xl);
-    transition: background-color var(--transition-normal);
 }
 
 .steps {
@@ -173,18 +163,15 @@
     font-size: var(--font-size-xl);
     font-weight: bold;
     flex-shrink: 0;
-    transition: background-color var(--transition-normal);
 }
 
 .step-content h3 {
     margin-bottom: var(--spacing-sm);
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .step-content p {
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
 }
 
 /* Testimonials Section */
@@ -213,8 +200,6 @@
     box-shadow: var(--shadow-md);
     margin-bottom: var(--spacing-lg);
     position: relative;
-    transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
-    border: 1px solid var(--border-color);
 }
 
 .testimonial-content::after {
@@ -226,9 +211,6 @@
     height: 20px;
     background-color: var(--bg-color);
     transform: rotate(45deg);
-    transition: background-color var(--transition-normal);
-    border-right: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
 }
 
 .testimonial-content p {
@@ -236,7 +218,6 @@
     font-size: var(--font-size-lg);
     color: var(--text-color);
     line-height: 1.6;
-    transition: color var(--transition-normal);
 }
 
 .testimonial-author {
@@ -251,8 +232,6 @@
     height: 60px;
     border-radius: var(--radius-full);
     overflow: hidden;
-    border: 2px solid var(--primary-light);
-    transition: border-color var(--transition-normal);
 }
 
 .author-avatar img {
@@ -264,12 +243,10 @@
 .author-info h4 {
     margin-bottom: 0;
     color: var(--text-color);
-    transition: color var(--transition-normal);
 }
 
 .author-info p {
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
 }
 
 .testimonial-dots {
@@ -298,7 +275,6 @@
     padding: var(--spacing-xl);
     margin: var(--spacing-xl) 0;
     text-align: center;
-    transition: background-color var(--transition-normal);
 }
 
 .cta-content h2 {
@@ -319,13 +295,10 @@
 .cta .btn {
     background-color: white;
     color: var(--primary-color);
-    transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .cta .btn:hover {
     background-color: rgba(255, 255, 255, 0.9);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
 }
 
 /* Media Queries */
@@ -344,10 +317,6 @@
     .hero-buttons {
         justify-content: center;
     }
-
-    .hero-title {
-        font-size: 2.5rem;
-    }
 }
 
 @media (max-width: 768px) {
@@ -359,71 +328,7 @@
         grid-template-columns: 1fr;
     }
     
-    .feature-card {
-        padding: var(--spacing-lg);
-    }
-    
-    .cta {
-        padding: var(--spacing-lg);
-    }
-    
-    .cta-content h2 {
-        font-size: var(--font-size-xl);
-    }
-}
-
-/* Print styles */
-@media print {
-    .hero, .features, .how-it-works, .testimonials, .cta {
-        display: block !important;
-        page-break-inside: avoid;
-    }
-    
-    .feature-card, .testimonial-content {
-        box-shadow: none !important;
-        border: 1px solid #ddd !important;
-    }
-    
-    .feature-card:hover {
-        transform: none !important;
-    }
-    
-    .hero-image img {
-        animation: none !important;
-    }
-    
-    .cta {
-        background-color: transparent !important;
-        border: 1px solid #ddd !important;
-        color: black !important;
-    }
-    
-    .cta h2, .cta p {
-        color: black !important;
-    }
-}
-
-/* Dark mode enhancements */
-[data-theme="dark"] .feature-card,
-[data-theme="dark"] .testimonial-content {
-    border-color: var(--border-color);
-}
-
-[data-theme="dark"] .cta .btn {
-    background-color: var(--bg-color);
-}
-
-/* For reduced motion */
-@media (prefers-reduced-motion: reduce) {
-    .hero-image img {
-        animation: none !important;
-    }
-    
-    .feature-card:hover {
-        transform: none !important;
-    }
-    
-    .cta .btn:hover {
-        transform: none !important;
+    .hero-title {
+        font-size: 2.5rem;
     }
 } 

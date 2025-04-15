@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+<div class="main-nav">
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <ul class="nav-links" id="navLinks">
+        <li><a href="{{ url_for('main.index') }}"><i class="fas fa-home"></i> Home</a></li>
+        {% if current_user.is_authenticated %}
+            <li><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('main.study') }}"><i class="fas fa-book-open"></i> Study</a></li>
+            <li><a href="{{ url_for('main.documents') }}"><i class="fas fa-file-alt"></i> Documents</a></li>
+        {% endif %}
+        <li><a href="{{ url_for('main.about') }}"><i class="fas fa-info-circle"></i> About</a></li>
+    </ul>
+</div>
+
+<div class="dropdown-menu">
+    <a href="{{ url_for('auth.profile') }}"><i class="fas fa-user"></i> Profile</a>
+    <a href="{{ url_for('auth.settings') }}"><i class="fas fa-cog"></i> Settings</a>
+    <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+</div>
+{% else %}
+<div class="auth-buttons">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-outline">Login</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Register</a>
+</div>
+{% endif %}
+
+<div class="footer-section">
+    <h3>Quick Links</h3>
+    <ul>
+        <li><a href="{{ url_for('main.index') }}">Home</a></li>
+        {% if current_user.is_authenticated %}
+            <li><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('main.study') }}">Study</a></li>
+            <li><a href="{{ url_for('main.documents') }}">Documents</a></li>
+        {% endif %}
+        <li><a href="{{ url_for('main.about') }}">About</a></li>
+    </ul>
+</div>
+
+<div class="footer-section">
+    <h3>Resources</h3>
+    <ul>
+        <li><a href="{{ url_for('main.help') }}">Help Center</a></li>
+        <li><a href="{{ url_for('main.blog') }}">Blog</a></li>
+        <li><a href="{{ url_for('main.faq') }}">FAQs</a></li>
+        <li><a href="{{ url_for('main.tutorials') }}">Tutorials</a></li>
+    </ul>
+</div>
+
+<div class="footer-section">
+    <h3>Legal</h3>
+    <ul>
+        <li><a href="{{ url_for('main.privacy') }}">Privacy Policy</a></li>
+        <li><a href="{{ url_for('main.terms') }}">Terms of Service</a></li>
+        <li><a href="{{ url_for('main.cookies') }}">Cookie Policy</a></li>
+    </ul>
+</div>
+
+<!-- Theme Toggle Script -->
+<script>
+    document.getElementById('themeToggle').addEventListener('click', function() {
+        fetch('/toggle-theme', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.documentElement.setAttribute('data-theme', data.theme);
+                this.innerHTML = data.theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+            }
+        });
+    });
+</script> 

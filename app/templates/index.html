@@ -2,194 +2,180 @@
 
 {% block title %}AI-Powered Study Assistant{% endblock %}
 
-{% block extra_css %}
+{% block custom_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}
 
 {% block content %}
 <section class="hero">
-    <div class="container-xl">
-        <div class="split items-center">
-            <div class="hero-content">
-                <h1 class="hero-title">Elevate Your Learning With AI</h1>
-                <p class="hero-subtitle">Smart study tools designed to help you learn more effectively and efficiently</p>
-                <div class="flex gap-3 mt-4">
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started for Free</a>
-                    <a href="#features" class="btn btn-outline btn-lg">Explore Features</a>
-                </div>
-            </div>
-            <div class="hero-image">
-                <img src="{{ url_for('static', filename='images/hero-illustration.svg') }}" alt="AI-Powered Study Assistant">
-            </div>
+    <div class="hero-content">
+        <h1 class="hero-title">Elevate Your Learning With AI</h1>
+        <p class="hero-subtitle">Smart study tools designed to help you learn more effectively and efficiently</p>
+        <div class="hero-buttons">
+            <a href="{{ url_for('auth_views.register') }}" class="btn btn-primary btn-lg">Get Started for Free</a>
+            <a href="#features" class="btn btn-outline btn-lg">Explore Features</a>
         </div>
+    </div>
+    <div class="hero-image">
+        <img src="{{ url_for('static', filename='images/hero-illustration.svg') }}" alt="AI-Powered Study Assistant">
     </div>
 </section>
 
 <section id="features" class="features">
-    <div class="container">
-        <div class="section-header text-center mb-5">
-            <h2>Study Smarter, Not Harder</h2>
-            <p>Powerful AI tools to enhance your learning experience</p>
+    <div class="section-header">
+        <h2>Study Smarter, Not Harder</h2>
+        <p>Powerful AI tools to enhance your learning experience</p>
+    </div>
+    
+    <div class="feature-cards">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <h3>AskDOC</h3>
+            <p>Upload your study materials and ask questions directly from the content. Get instant, accurate answers based on your documents.</p>
+            <a href="{{ url_for('main.documents_dashboard') }}" class="btn btn-primary">Try AskDOC</a>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <h3>AskDOC</h3>
-                <p>Upload your study materials and ask questions directly from the content. Get instant, accurate answers based on your documents.</p>
-                <a href="{{ url_for('main.documents') }}" class="btn btn-primary">Try AskDOC</a>
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-question-circle"></i>
             </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-question-circle"></i>
-                </div>
-                <h3>Q&A Generator</h3>
-                <p>Automatically generate practice questions from your study materials. Test your knowledge with MCQs and short-answer questions.</p>
-                <a href="{{ url_for('main.questions_dashboard') }}" class="btn btn-primary">Generate Questions</a>
+            <h3>Q&A Generator</h3>
+            <p>Automatically generate practice questions from your study materials. Test your knowledge with MCQs and short-answer questions.</p>
+            <a href="{{ url_for('main.questions_dashboard') }}" class="btn btn-primary">Generate Questions</a>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-pen"></i>
             </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-pen"></i>
-                </div>
-                <h3>Construct</h3>
-                <p>Summarize, correct, and restructure text to help you understand complex materials. Perfect for notes and review sessions.</p>
-                <a href="{{ url_for('main.text_dashboard') }}" class="btn btn-primary">Construct Text</a>
+            <h3>Construct</h3>
+            <p>Summarize, correct, and restructure text to help you understand complex materials. Perfect for notes and review sessions.</p>
+            <a href="{{ url_for('main.text_dashboard') }}" class="btn btn-primary">Construct Text</a>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-robot"></i>
             </div>
-            
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-robot"></i>
-                </div>
-                <h3>AI Assistant</h3>
-                <p>Your intelligent study assistant and coach. Get personalized study plans, tips, and strategies to optimize your learning process.</p>
-                <a href="{{ url_for('main.study') }}" class="btn btn-primary">Meet AI Assistant</a>
+            <h3>AI Assistant</h3>
+            <p>Your intelligent study assistant and coach. Get personalized study plans, tips, and strategies to optimize your learning process.</p>
+            <a href="{{ url_for('main.study_dashboard') }}" class="btn btn-primary">Meet AI Assistant</a>
+        </div>
+    </div>
+</section>
+
+<section class="how-it-works">
+    <div class="section-header">
+        <h2>How It Works</h2>
+        <p>Simple, powerful, and effective</p>
+    </div>
+    
+    <div class="steps">
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>Upload Your Study Materials</h3>
+                <p>Upload PDFs, DOCs, or text files of your study materials, lecture notes, textbooks, or articles.</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>Choose Your Learning Tool</h3>
+                <p>Select from our suite of AI-powered learning tools based on your current study needs.</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>Enhance Your Learning</h3>
+                <p>Get instant assistance, generate practice questions, summarize content, or receive study advice.</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <h3>Track Your Progress</h3>
+                <p>Monitor your learning journey, save important insights, and continuously improve your study habits.</p>
             </div>
         </div>
     </div>
 </section>
 
-<section class="how-it-works py-5">
-    <div class="container">
-        <div class="section-header text-center mb-5">
-            <h2>How It Works</h2>
-            <p>Simple, powerful, and effective</p>
+<section class="testimonials">
+    <div class="section-header">
+        <h2>What Our Users Say</h2>
+        <p>Join thousands of students who have transformed their learning experience</p>
+    </div>
+    
+    <div class="testimonial-slider">
+        <div class="testimonial">
+            <div class="testimonial-content">
+                <p>"AI Assistant has completely changed how I prepare for exams. The question generator helps me identify knowledge gaps, and AI Assistant keeps me accountable with my study schedule."</p>
+            </div>
+            <div class="testimonial-author">
+                <div class="author-avatar">
+                    <img src="{{ url_for('static', filename='images/testimonial-1.jpg') }}" alt="Sarah K.">
+                </div>
+                <div class="author-info">
+                    <h4>Sarah K.</h4>
+                    <p>Medical Student</p>
+                </div>
+            </div>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="step p-3">
-                <div class="step-number centered-content">1</div>
-                <div class="step-content">
-                    <h3>Upload Your Study Materials</h3>
-                    <p>Upload PDFs, DOCs, or text files of your study materials, lecture notes, textbooks, or articles.</p>
+        <div class="testimonial">
+            <div class="testimonial-content">
+                <p>"As a teacher, I use AI Assistant to create practice questions for my students. It saves me hours of work and helps my students engage more deeply with the material."</p>
+            </div>
+            <div class="testimonial-author">
+                <div class="author-avatar">
+                    <img src="{{ url_for('static', filename='images/testimonial-2.jpg') }}" alt="James R.">
+                </div>
+                <div class="author-info">
+                    <h4>James R.</h4>
+                    <p>High School Teacher</p>
                 </div>
             </div>
-            
-            <div class="step p-3">
-                <div class="step-number centered-content">2</div>
-                <div class="step-content">
-                    <h3>Choose Your Learning Tool</h3>
-                    <p>Select from our suite of AI-powered learning tools based on your current study needs.</p>
-                </div>
+        </div>
+        
+        <div class="testimonial">
+            <div class="testimonial-content">
+                <p>"The text summarization tool is a game-changer for someone like me who struggles with lengthy academic papers. It helps me grasp the key points quickly while maintaining accuracy."</p>
             </div>
-            
-            <div class="step p-3">
-                <div class="step-number centered-content">3</div>
-                <div class="step-content">
-                    <h3>Enhance Your Learning</h3>
-                    <p>Get instant assistance, generate practice questions, summarize content, or receive study advice.</p>
+            <div class="testimonial-author">
+                <div class="author-avatar">
+                    <img src="{{ url_for('static', filename='images/testimonial-3.jpg') }}" alt="Mia T.">
                 </div>
-            </div>
-            
-            <div class="step p-3">
-                <div class="step-number centered-content">4</div>
-                <div class="step-content">
-                    <h3>Track Your Progress</h3>
-                    <p>Monitor your learning journey, save important insights, and continuously improve your study habits.</p>
+                <div class="author-info">
+                    <h4>Mia T.</h4>
+                    <p>Graduate Researcher</p>
                 </div>
             </div>
         </div>
     </div>
-</section>
-
-<section class="testimonials py-5 bg-secondary">
-    <div class="container">
-        <div class="section-header text-center mb-5">
-            <h2>What Our Users Say</h2>
-            <p>Join thousands of students who have transformed their learning experience</p>
-        </div>
-        
-        <div class="testimonial-slider">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="testimonial p-4">
-                    <div class="testimonial-content mb-4">
-                        <p>"AI Assistant has completely changed how I prepare for exams. The question generator helps me identify knowledge gaps, and AI Assistant keeps me accountable with my study schedule."</p>
-                    </div>
-                    <div class="testimonial-author flex items-center">
-                        <div class="author-avatar mr-3">
-                            <img src="{{ url_for('static', filename='images/testimonial-1.jpg') }}" alt="Sarah K.">
-                        </div>
-                        <div class="author-info">
-                            <h4>Sarah K.</h4>
-                            <p>Medical Student</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="testimonial p-4">
-                    <div class="testimonial-content mb-4">
-                        <p>"As a teacher, I use AI Assistant to create practice questions for my students. It saves me hours of work and helps my students engage more deeply with the material."</p>
-                    </div>
-                    <div class="testimonial-author flex items-center">
-                        <div class="author-avatar mr-3">
-                            <img src="{{ url_for('static', filename='images/testimonial-2.jpg') }}" alt="James R.">
-                        </div>
-                        <div class="author-info">
-                            <h4>James R.</h4>
-                            <p>High School Teacher</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="testimonial p-4">
-                    <div class="testimonial-content mb-4">
-                        <p>"The text summarization tool is a game-changer for someone like me who struggles with lengthy academic papers. It helps me grasp the key points quickly while maintaining accuracy."</p>
-                    </div>
-                    <div class="testimonial-author flex items-center">
-                        <div class="author-avatar mr-3">
-                            <img src="{{ url_for('static', filename='images/testimonial-3.jpg') }}" alt="Mia T.">
-                        </div>
-                        <div class="author-info">
-                            <h4>Mia T.</h4>
-                            <p>Graduate Researcher</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="testimonial-dots flex justify-center mt-4">
-            <span class="dot active mx-1"></span>
-            <span class="dot mx-1"></span>
-            <span class="dot mx-1"></span>
-        </div>
+    
+    <div class="testimonial-dots">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
     </div>
 </section>
 
-<section class="cta py-5">
-    <div class="container">
-        <div class="cta-content text-center py-5">
-            <h2>Ready to Transform Your Learning Experience?</h2>
-            <p class="mb-4">Join thousands of students who are studying smarter, not harder.</p>
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started Today</a>
-        </div>
+<section class="cta">
+    <div class="cta-content">
+        <h2>Ready to Transform Your Learning Experience?</h2>
+        <p>Join thousands of students who are studying smarter, not harder.</p>
+        <a href="{{ url_for('auth_views.register') }}" class="btn btn-primary btn-lg">Get Started Today</a>
     </div>
 </section>
 {% endblock %}
 
-{% block extra_js %}
+{% block custom_js %}
 <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 {% endblock %}

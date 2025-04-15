@@ -52,15 +52,44 @@
     background-color: var(--bg-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
 }
 
 .tool-item:hover {
     background-color: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .tool-item.active {
     background-color: var(--primary-light);
-    border-left: 3px solid var(--primary-color);
+    border-left: 5px solid var(--primary-color);
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.tool-item.active::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 5px;
+    background-color: var(--primary-color);
+}
+
+.tool-item.active .tool-info h4 {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.tool-item.active .tool-icon {
+    background-color: var(--primary-color);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.4);
 }
 
 .tool-icon {
@@ -316,4 +345,153 @@
 .highlight-active {
     background-color: rgba(var(--warning-rgb), 0.3);
     border-bottom: 2px solid var(--warning-color);
+}
+
+.text-tools-card {
+    background-color: #fff;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.text-tools-card .card-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: var(--spacing-md);
+    font-weight: bold;
+}
+
+.text-tools-card .badge,
+.text-tools-card button {
+    background-color: white;
+    color: var(--primary-color);
+    border: none;
+    font-weight: 500;
+}
+
+/* Make sure the Process Text and Clear All buttons are visible */
+.text-tools-card .button-on-primary,
+button.process-text,
+button.clear-all {
+    background-color: white !important;
+    color: var(--primary-color) !important;
+    border: none !important;
+    font-weight: bold !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+}
+
+/* Tool header styles */
+.tool-header {
+    background-color: var(--primary-color);
+    padding: var(--spacing-md);
+}
+
+.tool-header h2, 
+.tool-header h3 {
+    color: white !important;
+    font-weight: bold !important;
+}
+
+/* Reset and simplify excessive title styles */
+.text-tools-title,
+.correct-text-title,
+.process-text-title,
+.tool-title {
+    /* Reset all styles */
+}
+
+#process-btn {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    font-weight: bold !important;
+    border: 1px solid var(--primary-color) !important;
+    position: relative;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+#process-btn:hover {
+    background-color: var(--secondary-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Specific fixes for the text-dashboard buttons and header */
+.text-card .card-header {
+    background-color: var(--primary-color) !important;
+}
+
+.text-card .card-header h3 {
+    color: white !important;
+    font-weight: bold !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.text-card .card-header .badge {
+    background-color: white !important;
+    color: var(--primary-color) !important;
+    padding: 5px 10px !important;
+    font-weight: bold !important;
+}
+
+/* Remove conflicting styles */
+.text-tools-card,
+.text-tools-card .card-header,
+.text-tools-card .badge,
+.text-tools-card button,
+.text-tools-card .button-on-primary,
+button.process-text,
+button.clear-all {
+    /* Reset all styles */
+}
+
+/* Specific fix for tool titles */
+#tool-title {
+    color: white !important;
+    font-weight: bold !important;
+    position: relative;
+    z-index: 10;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+    font-size: 1.25rem !important;
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+/* Badge styling */
+#tool-badge {
+    background-color: white !important;
+    color: var(--primary-color) !important;
+    font-weight: bold !important;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: none !important;
+}
+
+/* Consistency for clear buttons */
+#clear-history-btn,
+#clear-all-btn,
+.btn-clear,
+.btn-outline-danger {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+    font-weight: 500 !important;
+    padding: 5px 15px !important;
+    border-radius: var(--radius-md) !important;
+    transition: all 0.3s ease !important;
+}
+
+#clear-history-btn:hover,
+#clear-all-btn:hover,
+.btn-clear:hover,
+.btn-outline-danger:hover {
+    background-color: var(--bg-hover) !important;
+    color: var(--danger-color) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 } 

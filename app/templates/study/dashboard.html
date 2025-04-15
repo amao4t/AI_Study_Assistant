@@ -6,7 +6,7 @@
 <div class="dashboard-container">
     <div class="dashboard-header">
         <h1>Study Assistant</h1>
-        <p>Your intelligent study planner and tracker</p>
+        <p>AI-powered study planning and tracking tools</p>
     </div>
     
     <div class="dashboard-content">
@@ -244,32 +244,69 @@
     </div>
 </div>
 
-<!-- Study Session Modal -->
-<div id="session-modal" class="modal">
+<!-- Session Modal -->
+<div class="modal" id="session-modal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h4>Study Session</h4>
-                <button class="modal-close" id="close-session-modal"><i class="fas fa-times"></i></button>
+                <h4 class="modal-title">Study Session</h4>
+                <button type="button" class="modal-close" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <div class="session-timer">
-                    <div class="timer-display" id="timer-display">00:00:00</div>
+                <div id="session-form-container">
+                    <form id="session-form">
+                        <div class="form-group">
+                            <label for="session-type" class="form-label">Session Type</label>
+                            <select id="session-type" name="session_type" class="form-control">
+                                <option value="general">General Study</option>
+                                <option value="reading">Reading</option>
+                                <option value="practice">Practice Problems</option>
+                                <option value="review">Review</option>
+                                <option value="quiz">Quiz/Test Prep</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="session-document" class="form-label">Document (Optional)</label>
+                            <select id="session-document" name="document_id" class="form-control">
+                                <option value="">None</option>
+                                <!-- Documents will be populated via JavaScript -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="session-notes" class="form-label">Session Notes</label>
+                            <textarea id="session-notes" name="notes" class="form-control" placeholder="What are you planning to study? What are your goals for this session?"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-block">Start Session</button>
+                        </div>
+                    </form>
                 </div>
                 
-                <div class="form-group">
-                    <label for="session-subject" class="form-label">Subject</label>
-                    <input type="text" id="session-subject" class="form-control" placeholder="What are you studying?">
-                </div>
-                
-                <div class="form-group">
-                    <label for="session-notes" class="form-label">Session Notes</label>
-                    <textarea id="session-notes" class="form-control" placeholder="Add any notes or key insights from your study session..."></textarea>
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <button id="pause-session-btn" class="btn btn-warning"><i class="fas fa-pause"></i> Pause</button>
-                    <button id="end-session-btn" class="btn btn-danger"><i class="fas fa-stop"></i> End Session</button>
+                <div id="active-session-container" style="display: none;">
+                    <div class="session-timer">
+                        <div class="timer-display">
+                            <span id="timer-hours">00</span>:<span id="timer-minutes">00</span>:<span id="timer-seconds">00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="session-info">
+                        <p><strong>Session Type:</strong> <span id="active-session-type"></span></p>
+                        <p><strong>Started:</strong> <span id="active-session-start"></span></p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="active-session-notes" class="form-label">Session Notes</label>
+                        <textarea id="active-session-notes" class="form-control" placeholder="Take notes about what you've learned..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button id="end-session-btn" class="btn btn-danger btn-block">End Session</button>
+                    </div>
                 </div>
             </div>
         </div>

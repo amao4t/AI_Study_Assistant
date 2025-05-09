@@ -12,6 +12,23 @@ An intelligent study assistant application built with Flask that helps students 
 - Intelligent search and organization
 - RESTful API endpoints
 - Modern UI with modal popups for quick info
+- Real-time study session timer and focus tracking
+- Export and backup functionality
+- Mobile-responsive design
+- Dark/Light theme support
+- Personalized study plan generation
+- Study technique recommendations based on learning style
+- Resource recommendations for different subjects and levels
+- Text correction and grammar checking
+- Text rephrasing in multiple styles (academic, simple, creative, professional)
+- Document text extraction with OCR support
+- Image content analysis
+- Parallel document processing
+- Multi-format document support (PDF, DOCX, TXT)
+- Intelligent text chunking and processing
+- Fallback mechanisms for API failures
+- Multi-language text processing
+- Document sanitization and cleaning
 
 ## Tech Stack
 

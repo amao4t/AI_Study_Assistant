@@ -1,5 +1,16 @@
 // Fixed study.js file with improved handling for techniques and resources
 
+// Global variables
+let timerInterval = null;
+let activeSessionId = null;
+let sessionStartTime = null;
+let elapsedTime = 0;
+let isSessionActive = false;
+let startSessionBtn = null;
+let endSessionBtn = null;
+let pauseSessionBtn = null;
+let sessionTimerDisplay = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const toolItems = document.querySelectorAll('.tool-item');
@@ -21,6 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const sessionsList = document.getElementById('sessions-list');
     const startSessionBtn = document.getElementById('start-session-btn');
     const clearAllSessionsBtn = document.getElementById('clear-all-sessions-btn');
+    const pauseSessionBtn = document.getElementById('pause-session-btn');
+    const endSessionBtn = document.getElementById('end-session-btn');
     const plansList = document.getElementById('plans-list');
     const clearAllPlansBtn = document.getElementById('clear-all-plans-btn');
     const sessionModal = document.getElementById('session-modal');
@@ -30,7 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const activeSessionType = document.getElementById('active-session-type');
     const activeSessionStart = document.getElementById('active-session-start');
     const activeSessionNotes = document.getElementById('active-session-notes');
-    const endSessionBtn = document.getElementById('end-session-btn');
     const timerHours = document.getElementById('timer-hours');
     const timerMinutes = document.getElementById('timer-minutes');
     const timerSeconds = document.getElementById('timer-seconds');
@@ -38,9 +50,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const sessionDocument = document.getElementById('session-document');
     
     // State
-    let activeSessionId = null;
-    let timerInterval = null;
-    let sessionStartTime = null;
     let currentPlanData = null;
     
     // Initialize
@@ -161,7 +170,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // End Session
     if (endSessionBtn) {
-        endSessionBtn.addEventListener('click', endStudySession);
+        endSessionBtn.addEventListener('click', function() {
+            endStudySession();
+        });
+    }
+    
+    // Pause Session
+    if (pauseSessionBtn) {
+        pauseSessionBtn.addEventListener('click', function() {
+            if (activeSessionId) {
+                pauseStudySession(activeSessionId);
+            } else {
+                showNotification('No active study session to pause', 'warning');
+            }
+        });
     }
     
     // Generate study plan
@@ -656,7 +678,7 @@ function generateFallbackTechniques(subject, learningStyle) {
             sessionsList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-clock"></i>
-                    <p>No study sessions recorded yet. Start a session to track your progress.</p>
+                    <p>No study sessions found. Start a session to track progress.</p>
                 </div>
             `;
             return;
@@ -665,46 +687,101 @@ function generateFallbackTechniques(subject, learningStyle) {
         let html = '';
         
         sessions.forEach(session => {
-            const date = new Date(session.start_time).toLocaleString();
-            const active = session.end_time ? false : true;
-            
-            // Calculate duration
-            let duration = '...';
-            if (session.end_time) {
-                const start = new Date(session.start_time);
-                const end = new Date(session.end_time);
-                const durationMs = end - start;
-                const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                duration = `${hours}h ${minutes}m`;
+            // Determine status: active, paused, or completed
+            let status = 'completed';
+            if (!session.end_time) {
+                status = 'active';
+            } else if ((session.metadata && session.metadata.pauses) || (session.session_metadata && session.session_metadata.pauses)) {
+                status = 'paused';
             }
             
+            // Định dạng thời gian
+            const startTime = new Date(session.start_time).toLocaleString();
+            const endTime = session.end_time ? new Date(session.end_time).toLocaleString() : 'In progress';
+            
+            // Tính thời lượng
+            const durationMinutes = session.duration_minutes || 0;
+            const hours = Math.floor(durationMinutes / 60);
+            const minutes = Math.round(durationMinutes % 60);
+            const durationText = hours > 0 
+                ? `${hours} hours ${minutes} minutes` 
+                : `${minutes} minutes`;
+                
+            // Tạo các nút hành động dựa trên trạng thái
+            let actionButtons = '';
+            
+            if (status === 'active') {
+                actionButtons = `
+                    <button class="session-action-btn pause" data-id="${session.id}" title="Pause">
+                        <i class="fas fa-pause"></i> Pause
+                    </button>
+                    <button class="session-action-btn end" data-id="${session.id}" title="End">
+                        <i class="fas fa-stop"></i> End
+                    </button>
+                `;
+            } else if (status === 'paused') {
+                actionButtons = `
+                    <button class="session-action-btn resume" data-id="${session.id}" title="Resume">
+                        <i class="fas fa-play"></i> Resume
+                    </button>
+                    <button class="session-action-btn end" data-id="${session.id}" title="End">
+                        <i class="fas fa-stop"></i> End
+                    </button>
+                `;
+            }
+            
+            actionButtons += `
+                <button class="session-action-btn delete" data-id="${session.id}" title="Delete">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            `;
+            
+            // Hiển thị loại tài liệu (nếu có)
+            const documentInfo = session.document_id ? 
+                `<div class="session-document">Document: ID ${session.document_id}</div>` : '';
+            
+            // Icon và class cho trạng thái
+            let statusClass = '';
+            let statusIcon = '';
+            
+            switch (status) {
+                case 'active':
+                    statusClass = 'session-active';
+                    statusIcon = '<i class="fas fa-play-circle"></i>';
+                    break;
+                case 'paused':
+                    statusClass = 'session-paused';
+                    statusIcon = '<i class="fas fa-pause-circle"></i>';
+                    break;
+                case 'completed':
+                    statusClass = 'session-completed';
+                    statusIcon = '<i class="fas fa-check-circle"></i>';
+                    break;
+                default:
+                    statusClass = '';
+                    statusIcon = '<i class="fas fa-circle"></i>';
+            }
+            
+            // Tạo HTML cho session
             html += `
-                <div class="session-item" data-id="${session.id}">
+                <div class="session-item ${statusClass}" data-id="${session.id}">
                     <div class="session-header">
-                        <div class="session-title">${session.session_type}</div>
-                        <div class="session-duration">${duration}</div>
+                        <div class="session-title">
+                            ${statusIcon} ${session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
+                        </div>
+                        <div class="session-status">${status === 'active' ? 'In progress' : status === 'paused' ? 'Paused' : 'Completed'}</div>
                     </div>
-                    <div class="session-meta">
-                        ${date}
-                        ${session.paused ? '<span class="badge bg-warning">Paused</span>' : ''}
-                        ${active && !session.paused ? '<span class="badge bg-success">Active</span>' : ''}
+                    <div class="session-time">
+                        <div class="session-start-time">Started: ${startTime}</div>
+                        <div class="session-end-time">Ended: ${endTime}</div>
+                        <div class="session-duration">Duration: ${durationText}</div>
                     </div>
-                    ${session.notes ? `<div class="session-notes">${session.notes}</div>` : ''}
+                    ${documentInfo}
+                    <div class="session-notes-preview">
+                        ${session.notes ? `<div class="notes-label">Notes:</div> ${session.notes.substring(0, 100)}${session.notes.length > 100 ? '...' : ''}` : ''}
+                    </div>
                     <div class="session-actions">
-                        ${active && !session.paused ? `
-                            <button class="session-action-btn pause" data-id="${session.id}" title="Pause">
-                                <i class="fas fa-pause"></i> Pause
-                            </button>
-                        ` : ''}
-                        ${session.paused ? `
-                            <button class="session-action-btn resume" data-id="${session.id}" title="Resume">
-                                <i class="fas fa-play"></i> Resume
-                            </button>
-                        ` : ''}
-                        <button class="session-action-btn delete" data-id="${session.id}" title="Delete">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
+                        ${actionButtons}
                     </div>
                 </div>
             `;
@@ -712,7 +789,7 @@ function generateFallbackTechniques(subject, learningStyle) {
         
         sessionsList.innerHTML = html;
         
-        // Add event listeners for action buttons
+        // Thêm event listeners cho các nút
         document.querySelectorAll('.session-action-btn.pause').forEach(btn => {
             btn.addEventListener('click', function() {
                 const sessionId = this.dataset.id;
@@ -724,6 +801,13 @@ function generateFallbackTechniques(subject, learningStyle) {
             btn.addEventListener('click', function() {
                 const sessionId = this.dataset.id;
                 resumeStudySession(sessionId);
+            });
+        });
+        
+        document.querySelectorAll('.session-action-btn.end').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sessionId = this.dataset.id;
+                endStudySession(sessionId);
             });
         });
         
@@ -821,15 +905,28 @@ function generateFallbackTechniques(subject, learningStyle) {
     }
     
     // End study session
-    async function endStudySession() {
-        if (!activeSessionId) {
+    async function endStudySession(sessionId = null) {
+        // Nếu không có id được chỉ định, sử dụng phiên hiện tại
+        const targetSessionId = sessionId || activeSessionId;
+        
+        if (!targetSessionId) {
             showNotification('No active session to end', 'warning');
-            closeSessionModal();
+            return;
+        }
+        
+        // Xác nhận với người dùng
+        if (!confirm('Are you sure you want to end this study session? This action cannot be undone.')) {
             return;
         }
         
         try {
-            const response = await fetch(`/api/study/session/${activeSessionId}/end`, {
+            // Thu thập ghi chú nếu là phiên hiện tại
+            let notes = '';
+            if (targetSessionId === activeSessionId && activeSessionNotes) {
+                notes = activeSessionNotes.value;
+            }
+            
+            const response = await fetch(`/api/study/session/${targetSessionId}/end`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -837,30 +934,33 @@ function generateFallbackTechniques(subject, learningStyle) {
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify({
-                    notes: activeSessionNotes ? activeSessionNotes.value : ''
+                    notes: notes
                 })
             });
             
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Unable to end study session');
             }
             
-            // Stop timer
-            stopTimer();
+            // Nếu đang kết thúc phiên hiện tại
+            if (targetSessionId === activeSessionId) {
+                // Dừng bộ đếm thời gian
+                stopTimer();
+                
+                // Reset phiên hiện tại
+                activeSessionId = null;
+                
+                // Đóng modal
+                closeSessionModal();
+            }
             
-            // Reset active session
-            activeSessionId = null;
-            
-            // Close modal
-            closeSessionModal();
-            
-            // Reload sessions
-            loadSessions();
+            // Tải lại danh sách phiên
+            await loadSessions();
             
             showNotification('Study session ended', 'success');
         } catch (error) {
-            console.error('Error ending session:', error);
-            showNotification('Failed to end session', 'danger');
+            console.error('Error ending study session:', error);
+            showNotification(`Cannot end session: ${error.message}`, 'danger');
         }
     }
     
@@ -1015,88 +1115,159 @@ function generateFallbackTechniques(subject, learningStyle) {
     // Pause a study session
     async function pauseStudySession(sessionId) {
         try {
-            const response = await fetch(`/api/study/sessions/${sessionId}/pause`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            
-            // Check if this is the active session
+            // If session is active, show modal to enter notes before pausing
             if (activeSessionId === parseInt(sessionId)) {
-                // Stop the timer
+                // Stop timer
                 stopTimer();
-                // Close the modal
-                closeSessionModal();
+                
+                // Collect current notes
+                const notes = activeSessionNotes ? activeSessionNotes.value : '';
+                
+                // Send pause request
+                const response = await fetch(`/api/study/sessions/${sessionId}/pause`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        notes: notes
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Unable to pause study session');
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || 'Error pausing study session');
+                }
+                
                 // Reset active session
                 activeSessionId = null;
+                
+                // Close modal
+                closeSessionModal();
+                
+                // Reload sessions list
+                await loadSessions();
+                
+                showNotification('Study session paused', 'success');
+            } else {
+                // Send pause request directly
+                const response = await fetch(`/api/study/sessions/${sessionId}/pause`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Unable to pause study session');
+                }
+                
+                // Reload sessions list
+                await loadSessions();
+                
+                showNotification('Study session paused', 'success');
             }
-            
-            // Reload sessions
-            await loadSessions();
-            
-            showNotification('Session paused', 'success');
         } catch (error) {
-            console.error('Error pausing session:', error);
-            showNotification('Failed to pause session', 'danger');
+            console.error('Error pausing study session:', error);
+            showNotification(`Cannot pause session: ${error.message}`, 'danger');
         }
     }
     
     // Resume a study session
     async function resumeStudySession(sessionId) {
         try {
+            // First get the current session info
+            const getSessionResponse = await fetch(`/api/study/sessions/${sessionId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+            
+            if (!getSessionResponse.ok) {
+                throw new Error('Unable to retrieve session information');
+            }
+            
+            const sessionData = await getSessionResponse.json();
+            
+            // Call API to resume session
             const response = await fetch(`/api/study/sessions/${sessionId}/resume`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    resume_time: new Date().toISOString()
+                })
             });
             
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Unable to resume study session');
             }
             
-            // Set as active session
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'Error resuming study session');
+            }
+            
+            // Set up current session
             activeSessionId = parseInt(sessionId);
             
-            // Get session data
-            const sessionsResponse = await fetch('/api/study/sessions');
-            const sessions = await sessionsResponse.json();
-            const session = sessions.find(s => s.id === parseInt(sessionId));
-            
-            if (session) {
-                // Show modal with active session
+            // Display modal with session info
+            if (sessionModal && sessionFormContainer && activeSessionContainer) {
                 sessionModal.classList.add('show');
                 sessionFormContainer.style.display = 'none';
                 activeSessionContainer.style.display = 'block';
                 
-                // Set session info
-                activeSessionType.textContent = session.session_type;
-                activeSessionStart.textContent = new Date(session.start_time).toLocaleString();
-                if (session.notes) {
-                    activeSessionNotes.value = session.notes;
+                // Update session info
+                if (activeSessionType && sessionData.session_type) {
+                    // Format session type with first letter capitalized
+                    const formattedType = sessionData.session_type.charAt(0).toUpperCase() + 
+                                          sessionData.session_type.slice(1);
+                    activeSessionType.textContent = formattedType;
                 }
                 
-                // Start timer
-                sessionStartTime = new Date(session.start_time);
+                if (activeSessionStart && sessionData.start_time) {
+                    const startDate = new Date(sessionData.start_time);
+                    activeSessionStart.textContent = startDate.toLocaleString();
+                }
+                
+                if (activeSessionNotes && sessionData.notes) {
+                    activeSessionNotes.value = sessionData.notes;
+                }
+                
+                // Calculate exact elapsed time (not counting paused time)
+                const elapsedTime = result.elapsed_time_seconds || 0; // Elapsed time in seconds
+                
+                // Create virtual start time based on elapsed time
+                const now = new Date();
+                sessionStartTime = new Date(now.getTime() - (elapsedTime * 1000));
+                
+                // Start the timer
                 startTimer();
+                
+                showNotification('Study session resumed', 'success');
             }
             
-            // Reload sessions
+            // Reload sessions list
             await loadSessions();
             
-            showNotification('Session resumed', 'success');
         } catch (error) {
-            console.error('Error resuming session:', error);
-            showNotification('Failed to resume session', 'danger');
+            console.error('Error resuming study session:', error);
+            showNotification(`Cannot resume session: ${error.message}`, 'danger');
         }
     }
     

@@ -9,10 +9,21 @@ import uuid
 from werkzeug.utils import secure_filename
 import base64
 from io import BytesIO
+import time
+import zipfile
+import re
+import requests
+import tempfile
+import mimetypes
+from pathlib import Path
 
 from app import db
 from app.models.document import Document
+from app.models.chat import ChatHistory
 from app.utils.api_utils import APIError, log_api_access
+from app.utils.claude import get_anthropic_client
+from app.utils.summarize import generate_summary
+from app.services.document_processor import DocumentProcessor
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -473,6 +484,11 @@ def chat_with_document():
         document_id = data.get('document_id')
         question = data.get('query')
         chat_history = data.get('chat_history', [])
+        session_id = data.get('session_id')
+        
+        # If no session_id provided, create a new one
+        if not session_id:
+            session_id = f"doc_{document_id}_{uuid.uuid4().hex[:8]}"
         
         # Verify document exists and belongs to user
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first()
@@ -499,15 +515,34 @@ def chat_with_document():
         
         if not answer:
             raise APIError("Failed to generate response", code=500)
+        
+        # Save question and answer to chat history
+        ChatHistory.save_message(
+            user_id=current_user.id,
+            role='user',
+            message=question,
+            document_id=document_id,
+            session_id=session_id
+        )
+        
+        ChatHistory.save_message(
+            user_id=current_user.id,
+            role='assistant',
+            message=answer,
+            document_id=document_id,
+            session_id=session_id
+        )
             
         log_api_access("chat_with_document", True, {
             "document_id": document_id,
-            "question_length": len(question)
+            "question_length": len(question),
+            "session_id": session_id
         })
             
         return jsonify({
             'response': answer,  # Used "response" to match what the frontend expects
             'document_id': document_id,
+            'session_id': session_id,
             'is_fallback': False
         }), 200
         
@@ -560,3 +595,177 @@ def get_document_content(document_id):
         logger.exception("Error getting document content")
         log_api_access("get_document_content", False, {"document_id": document_id})
         raise APIError.from_exception(e, default_message="Failed to get document content")
+
+@documents_bp.route('/<int:document_id>/chat-history', methods=['GET'])
+@login_required
+def get_document_chat_history(document_id):
+    """Get chat history for a document"""
+    try:
+        # Verify document exists and belongs to user
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first()
+        if not document:
+            log_api_access("get_document_chat_history", False, {"document_id": document_id})
+            raise APIError("Document not found", code=404)
+        
+        # Get chat sessions for the document
+        chat_sessions = ChatHistory.get_chat_sessions(current_user.id, document_id)
+        
+        if not chat_sessions:
+            return jsonify({
+                'sessions': []
+            }), 200
+        
+        # Format sessions for the response
+        sessions = []
+        for session in chat_sessions:
+            sessions.append({
+                'session_id': session.session_id,
+                'start_time': session.start_time.isoformat() if session.start_time else None,
+                'last_activity': session.last_activity.isoformat() if session.last_activity else None,
+                'message_count': session.message_count
+            })
+        
+        log_api_access("get_document_chat_history", True, {
+            "document_id": document_id,
+            "session_count": len(sessions)
+        })
+        
+        return jsonify({
+            'sessions': sessions
+        }), 200
+    except APIError:
+        # Re-raise APIError to be handled by the global handler
+        raise
+    except Exception as e:
+        logger.exception("Error getting document chat history")
+        log_api_access("get_document_chat_history", False, {"document_id": document_id})
+        raise APIError.from_exception(e, default_message="Failed to get document chat history")
+
+@documents_bp.route('/chat-sessions/<string:session_id>', methods=['GET'])
+@login_required
+def get_chat_session(session_id):
+    """Get messages for a specific chat session"""
+    try:
+        # Get chat messages for the session
+        chat_messages = ChatHistory.get_chat_history(current_user.id, session_id=session_id)
+        
+        if not chat_messages:
+            return jsonify({
+                'messages': [],
+                'session_id': session_id
+            }), 200
+        
+        # Get document info if available
+        document_id = chat_messages[0].document_id
+        document = None
+        if document_id:
+            document = Document.query.filter_by(id=document_id, user_id=current_user.id).first()
+        
+        # Format messages for the response
+        messages = []
+        for message in chat_messages:
+            messages.append({
+                'id': message.id,
+                'role': message.role,
+                'message': message.message,
+                'timestamp': message.timestamp.isoformat() if message.timestamp else None
+            })
+        
+        log_api_access("get_chat_session", True, {
+            "session_id": session_id,
+            "message_count": len(messages)
+        })
+        
+        response = {
+            'messages': messages,
+            'session_id': session_id
+        }
+        
+        if document:
+            response['document'] = {
+                'id': document.id,
+                'name': document.original_filename
+            }
+        
+        return jsonify(response), 200
+    except APIError:
+        # Re-raise APIError to be handled by the global handler
+        raise
+    except Exception as e:
+        logger.exception("Error getting chat session")
+        log_api_access("get_chat_session", False, {"session_id": session_id})
+        raise APIError.from_exception(e, default_message="Failed to get chat session")
+
+@documents_bp.route('/chat-sessions', methods=['GET'])
+@login_required
+def get_all_chat_sessions():
+    """Get all chat sessions for the current user"""
+    try:
+        # Get all chat sessions for the user
+        chat_sessions = ChatHistory.get_chat_sessions(current_user.id)
+        
+        if not chat_sessions:
+            return jsonify({
+                'sessions': []
+            }), 200
+        
+        # Get document info for sessions
+        document_ids = set()
+        for session in chat_sessions:
+            # Get the document_id from one of the messages in the session
+            chat_message = ChatHistory.query.filter_by(
+                user_id=current_user.id, 
+                session_id=session.session_id
+            ).first()
+            
+            if chat_message and chat_message.document_id:
+                document_ids.add(chat_message.document_id)
+        
+        documents = {}
+        if document_ids:
+            document_records = Document.query.filter(
+                Document.id.in_(document_ids),
+                Document.user_id == current_user.id
+            ).all()
+            
+            for doc in document_records:
+                documents[doc.id] = {
+                    'id': doc.id,
+                    'name': doc.original_filename
+                }
+        
+        # Format sessions for the response
+        sessions = []
+        for session in chat_sessions:
+            # Get document_id for this session
+            chat_message = ChatHistory.query.filter_by(
+                user_id=current_user.id, 
+                session_id=session.session_id
+            ).first()
+            
+            document_info = None
+            if chat_message and chat_message.document_id and chat_message.document_id in documents:
+                document_info = documents[chat_message.document_id]
+            
+            sessions.append({
+                'session_id': session.session_id,
+                'start_time': session.start_time.isoformat() if session.start_time else None,
+                'last_activity': session.last_activity.isoformat() if session.last_activity else None,
+                'message_count': session.message_count,
+                'document': document_info
+            })
+        
+        log_api_access("get_all_chat_sessions", True, {
+            "session_count": len(sessions)
+        })
+        
+        return jsonify({
+            'sessions': sessions
+        }), 200
+    except APIError:
+        # Re-raise APIError to be handled by the global handler
+        raise
+    except Exception as e:
+        logger.exception("Error getting all chat sessions")
+        log_api_access("get_all_chat_sessions", False)
+        raise APIError.from_exception(e, default_message="Failed to get chat sessions")

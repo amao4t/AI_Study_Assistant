@@ -261,10 +261,10 @@
                             <label for="session-type" class="form-label">Session Type</label>
                             <select id="session-type" name="session_type" class="form-control">
                                 <option value="general">General Study</option>
-                                <option value="reading">Reading</option>
-                                <option value="practice">Practice Problems</option>
+                                <option value="reading">Reading Materials</option>
+                                <option value="practice">Practice Exercises</option>
                                 <option value="review">Review</option>
-                                <option value="quiz">Quiz/Test Prep</option>
+                                <option value="quiz">Test Preparation</option>
                             </select>
                         </div>
                         
@@ -278,7 +278,7 @@
                         
                         <div class="form-group">
                             <label for="session-notes" class="form-label">Session Notes</label>
-                            <textarea id="session-notes" name="notes" class="form-control" placeholder="What are you planning to study? What are your goals for this session?"></textarea>
+                            <textarea id="session-notes" name="notes" class="form-control" placeholder="What do you plan to study? What are your goals for this session?"></textarea>
                         </div>
                         
                         <div class="form-group">
@@ -301,11 +301,12 @@
                     
                     <div class="form-group">
                         <label for="active-session-notes" class="form-label">Session Notes</label>
-                        <textarea id="active-session-notes" class="form-control" placeholder="Take notes about what you've learned..."></textarea>
+                        <textarea id="active-session-notes" class="form-control" placeholder="Write down what you've learned..."></textarea>
                     </div>
                     
-                    <div class="form-group">
-                        <button id="end-session-btn" class="btn btn-danger btn-block">End Session</button>
+                    <div class="form-group session-controls">
+                        <button id="pause-session-btn" class="btn btn-warning"><i class="fas fa-pause"></i> Pause</button>
+                        <button id="end-session-btn" class="btn btn-danger"><i class="fas fa-stop"></i> End</button>
                     </div>
                 </div>
             </div>

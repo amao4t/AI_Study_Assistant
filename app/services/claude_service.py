@@ -56,6 +56,10 @@ class ClaudeService:
             Extracted text from the image
         """
         try:
+            # Log the image size for debugging
+            image_size = len(image_data)
+            logger.debug(f"Processing image with OCR, size: {image_size} bytes")
+            
             # Encode image to base64
             base64_image = base64.b64encode(image_data).decode('utf-8')
             
@@ -74,36 +78,49 @@ class ClaudeService:
                         },
                         {
                             "type": "text",
-                            "text": "Please extract all the text from this image. Return only the extracted text without any additional commentary."
+                            "text": "Please extract all the text from this image. Return only the extracted text without any additional commentary. Maintain the original formatting as much as possible including paragraphs, bullet points, and table structures."
                         }
                     ]
                 }
             ]
             
             # Set appropriate system prompt for OCR
-            system_prompt = "You are an OCR assistant. Your task is to accurately extract text from images. Return only the extracted text without any commentary, explanations, or additional formatting."
+            system_prompt = "You are an OCR assistant. Your task is to accurately extract text from images. Return only the extracted text without any commentary, explanations, or additional formatting. Preserve the original text layout including paragraphs, bullet points, and table structures as much as possible."
             
             # Make API call
-            result = self._call_claude_api(
-                messages=messages,
-                system_prompt=system_prompt,
-                max_tokens=4000,  # Higher token limit for potentially long documents
-                temperature=0.2,  # Lower temperature for more accurate text extraction
-                model="claude-3-opus-20240229"  # Using opus for best quality
-            )
-            
-            # Extract text from response
-            if 'content' in result and len(result['content']) > 0:
-                extracted_text = result['content'][0]['text'].strip()
-                logger.info(f"Successfully extracted text from image ({len(extracted_text)} chars)")
-                return extracted_text
-            else:
-                logger.error("Invalid response from Claude API for OCR")
-                return None
+            try:
+                result = self._call_claude_api(
+                    messages=messages,
+                    system_prompt=system_prompt,
+                    max_tokens=4000,  # Higher token limit for potentially long documents
+                    temperature=0.2,  # Lower temperature for more accurate text extraction
+                    model="claude-3-opus-20240229"  # Using opus for best quality
+                )
+                
+                # Extract text from response
+                if 'content' in result and len(result['content']) > 0:
+                    extracted_text = result['content'][0]['text'].strip()
+                    text_length = len(extracted_text)
+                    logger.info(f"Successfully extracted text from image ({text_length} chars)")
+                    
+                    # Log a snippet of the extracted text for debugging
+                    if text_length > 0:
+                        snippet = extracted_text[:100] + ('...' if text_length > 100 else '')
+                        logger.debug(f"Extracted text preview: {snippet}")
+                    
+                    return extracted_text
+                else:
+                    logger.error("Invalid response from Claude API for OCR")
+                    logger.info("Attempting local OCR fallback")
+                    return self._fallback_local_ocr(image_data)
+            except Exception as api_error:
+                logger.error(f"Error processing image with Claude OCR: {str(api_error)}")
+                logger.info("Attempting local OCR fallback")
+                return self._fallback_local_ocr(image_data)
                 
         except Exception as e:
             logger.exception(f"Error processing image with OCR: {str(e)}")
-            return None
+            return self._fallback_local_ocr(image_data)
             
     def chat_with_text(self, text, user_question, chat_history=None):
         """Chat with text content using Claude
@@ -213,4 +230,40 @@ TEXT TO SUMMARIZE:
                 
         except Exception as e:
             logger.exception(f"Error in summarize_text: {str(e)}")
-            return f"Error generating summary: {str(e)}" 
+            return f"Error generating summary: {str(e)}"
+
+    def _fallback_local_ocr(self, image_data):
+        """Fallback to local OCR processing if Claude Vision fails
+        
+        Args:
+            image_data: Raw image bytes
+            
+        Returns:
+            Extracted text from the image or empty string if failed
+        """
+        try:
+            # Import optional dependencies
+            import pytesseract
+            from PIL import Image
+            import io
+            
+            logger.info("Attempting local OCR fallback")
+            
+            # Convert bytes to PIL Image
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Process with Tesseract OCR
+            extracted_text = pytesseract.image_to_string(image)
+            
+            if extracted_text:
+                logger.info(f"Local OCR extracted {len(extracted_text)} characters")
+                return extracted_text
+            else:
+                logger.warning("Local OCR extraction returned empty result")
+                return ""
+        except ImportError:
+            logger.warning("Pytesseract not installed, cannot perform local OCR")
+            return ""
+        except Exception as e:
+            logger.exception(f"Error in local OCR fallback: {str(e)}")
+            return "" 

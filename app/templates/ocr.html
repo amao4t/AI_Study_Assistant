@@ -2,114 +2,80 @@
 
 {% block title %}OCR & Image Processing | AI Study Assistant{% endblock %}
 
-{% block custom_css %}
+{% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ocr.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mt-4">
-        <div class="col-lg-12">
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
             <h1>Image Processing & OCR</h1>
-            <p class="lead">Extract text from images or image-based PDFs using OCR (Optical Character Recognition)</p>
-        </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">Upload Image</h5>
+            <p class="lead">Extract text from images or image-based PDFs using OCR (Optical Character Recognition) powered by Claude Vision AI</p>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-lightbulb"></i>
+                <strong>Improved OCR capability:</strong> This application now uses Claude Vision AI for accurate text extraction from images with fallback to local processing if needed.
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Process Image with OCR</h5>
                 </div>
                 <div class="card-body">
-                    <form id="image-form" enctype="multipart/form-data">
+                    <form id="image-ocr-form">
                         <div class="mb-3">
-                            <label for="image-upload" class="form-label">Select Image</label>
-                            <input type="file" class="form-control" id="image-upload" name="image" accept="image/*" required>
-                            <div class="form-text">Supported formats: PNG, JPG, JPEG, GIF, BMP, TIFF</div>
+                            <label for="image-file" class="form-label">Select Image</label>
+                            <input class="form-control" type="file" id="image-file" name="image" accept="image/*">
+                            <div class="form-text">Supported formats: JPG, PNG, GIF, BMP</div>
                         </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="analyze-image" name="analyze" checked>
-                                <label class="form-check-label" for="analyze-image">
-                                    Analyze with AI
-                                </label>
-                                <div class="form-text">Use AI to analyze image content beyond text</div>
-                            </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="analyze-image" name="analyze">
+                            <label class="form-check-label" for="analyze-image">Also analyze image content (extract more context)</label>
                         </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="save-as-document" name="save">
-                                <label class="form-check-label" for="save-as-document">
-                                    Save as Document
-                                </label>
-                                <div class="form-text">Store the extracted text as a document for future use</div>
-                            </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="save-image" name="save">
+                            <label class="form-check-label" for="save-image">Save image as document</label>
                         </div>
-                        
-                        <button type="submit" class="btn btn-primary">Process Image</button>
+                        <button type="submit" class="btn btn-primary">Extract Text</button>
                     </form>
                 </div>
             </div>
             
-            <div class="card shadow-sm mt-4">
-                <div class="card-header">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Process PDF with OCR</h5>
                 </div>
                 <div class="card-body">
                     <form id="pdf-ocr-form">
                         <div class="mb-3">
-                            <label class="form-label">Select Document</label>
-                            <select class="form-select" id="document-select" required>
-                                <option value="">Loading documents...</option>
-                            </select>
+                            <label for="pdf-file" class="form-label">Select PDF</label>
+                            <input class="form-control" type="file" id="pdf-file" name="pdf" accept=".pdf">
+                            <div class="form-text">PDF files with image content will be processed with OCR</div>
                         </div>
-                        
                         <button type="submit" class="btn btn-primary">Process with OCR</button>
-                        <div class="form-text mt-2">Use this for image-based PDFs where text can't be extracted normally</div>
                     </form>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-lg-6">
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Results</h5>
-                    <button id="copy-text-btn" class="btn btn-sm btn-outline-secondary" disabled>
-                        <i class="fas fa-copy"></i> Copy Text
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div id="results-container">
-                        <div class="empty-state text-center py-5">
-                            <i class="fas fa-file-image text-muted" style="font-size: 3rem;"></i>
-                            <p class="mt-3">Upload an image to extract text</p>
-                        </div>
-                    </div>
+            
+            <div id="ocr-result" class="mt-3" style="display: none;">
+                <h3>Extracted Text</h3>
+                <div id="ocr-text" class="ocr-text-container"></div>
+                <div class="mt-3">
+                    <button id="use-ocr-text" class="btn btn-sm btn-primary">Use This Text</button>
+                    <button id="save-ocr-text" class="btn btn-sm btn-outline">Save as Document</button>
                 </div>
             </div>
             
-            <div class="card shadow-sm mt-4" id="analysis-card" style="display: none;">
-                <div class="card-header">
-                    <h5 class="mb-0">AI Analysis</h5>
-                </div>
-                <div class="card-body">
-                    <div id="analysis-container">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <span class="ms-2">Analyzing image...</span>
-                    </div>
-                </div>
+            <div id="ai-analysis" class="mt-3" style="display: none;">
+                <h3>AI Analysis</h3>
+                <div id="analysis-text" class="analysis-text-container"></div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block custom_js %}
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/ocr.js') }}"></script>
 {% endblock %} 

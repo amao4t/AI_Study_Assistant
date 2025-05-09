@@ -631,63 +631,151 @@ class DocumentProcessor:
             return None, str(e)
     
     def extract_text_from_image(self, image_path):
-        """Extract text from images using OCR"""
+        """Extract text from images using Claude Vision API for OCR"""
         try:
-            # Import here to avoid requiring these libraries for basic functionality
-            import pytesseract
-            from PIL import Image
+            from flask import current_app
             
-            logger.info(f"Extracting text from image: {image_path}")
-            img = Image.open(image_path)
+            logger.info(f"Extracting text from image using Claude Vision: {image_path}")
             
-            # Preprocess image for better OCR results (optional)
-            # img = img.convert('L')  # Convert to grayscale
+            # Get the Claude service from the app context
+            claude_service = current_app.services.get('ai_service')
             
-            # Extract text using Tesseract OCR
-            text = pytesseract.image_to_string(img)
+            if not claude_service:
+                logger.error("Claude service not available for image OCR")
+                return ""
+            
+            # Read the image file
+            with open(image_path, "rb") as img_file:
+                image_data = img_file.read()
+            
+            # Use Claude Vision to extract text
+            text = claude_service.process_image_ocr(image_data)
+            
+            if not text:
+                logger.warning("Claude Vision OCR returned empty result")
+                return ""
             
             # Clean up the text
             text = self.sanitize_input(text)
             
-            logger.info(f"Successfully extracted {len(text)} characters from image")
+            logger.info(f"Successfully extracted {len(text)} characters from image using Claude Vision")
             return text
         except Exception as e:
-            logger.exception(f"Error extracting text from image: {str(e)}")
+            logger.exception(f"Error extracting text from image with Claude Vision: {str(e)}")
             return ""
     
     def extract_text_from_pdf_with_ocr(self, pdf_path):
-        """Extract text from PDF with OCR for image-based PDFs"""
+        """Extract text from PDF using Claude API after converting to images"""
         try:
-            # Import here to avoid requiring these libraries for basic functionality
-            import pytesseract
-            from pdf2image import convert_from_path
+            from flask import current_app
+            import base64
+            import os
             
-            logger.info(f"Converting PDF to images using OCR: {pdf_path}")
-            # Convert PDF to images
-            pages = convert_from_path(pdf_path, 300)  # DPI 300
+            logger.info(f"Processing PDF with Claude API: {pdf_path}")
             
-            # Process each page
-            text = ""
-            page_count = len(pages)
-            logger.info(f"Processing {page_count} pages with OCR")
+            # Get the Claude service from the app context
+            claude_service = current_app.services.get('ai_service')
             
-            for i, page in enumerate(pages[:10]):  # Limit to first 10 pages for performance
-                logger.info(f"OCR processing page {i+1}/{min(page_count, 10)}")
+            if not claude_service:
+                logger.error("Claude service not available for PDF processing")
+                return ""
+            
+            # Check if pdf2image is available for conversion
+            try:
+                from pdf2image import convert_from_path
+                import io
                 
-                # Extract text using OCR
-                page_text = pytesseract.image_to_string(page)
-                text += f"\n\n--- Page {i+1} ---\n\n{page_text}"
-            
-            # Clean the extracted text
-            text = self.sanitize_input(text)
-            
-            logger.info(f"Successfully extracted {len(text)} characters from PDF with OCR")
-            return text
-        except ImportError as e:
-            logger.warning(f"OCR libraries not available: {e}")
-            return ""
+                # Convert PDF to images first (safer for API)
+                logger.info(f"Converting PDF pages to images for processing")
+                
+                # Try with lower DPI if file is large
+                try:
+                    pages = convert_from_path(pdf_path, 150)  # Use lower DPI for performance
+                except Exception as e:
+                    logger.warning(f"Error converting at higher DPI, trying with lower setting: {str(e)}")
+                    pages = convert_from_path(pdf_path, 72)  # Fallback to very low DPI
+                
+                page_count = len(pages)
+                logger.info(f"Successfully converted {page_count} pages to images")
+                
+                # Process each page
+                all_text = []
+                pages_to_process = min(20, page_count)  # Limit to 20 pages
+                
+                for i, page in enumerate(pages[:pages_to_process]):
+                    try:
+                        logger.info(f"Processing page {i+1}/{pages_to_process}")
+                        
+                        # Convert page to bytes
+                        img_bytes = io.BytesIO()
+                        page.save(img_bytes, format='JPEG', quality=85)  # Lower quality for API limits
+                        img_bytes = img_bytes.getvalue()
+                        
+                        # Process with Claude Vision API
+                        page_text = claude_service.process_image_ocr(img_bytes)
+                        
+                        if page_text:
+                            all_text.append(f"\n\n--- Page {i+1} ---\n\n{page_text}")
+                            logger.info(f"Successfully extracted {len(page_text)} chars from page {i+1}")
+                        else:
+                            logger.warning(f"No text extracted from page {i+1}")
+                            
+                    except Exception as page_error:
+                        logger.warning(f"Error processing page {i+1}: {str(page_error)}")
+                
+                # Combine all extracted text
+                combined_text = "\n".join(all_text)
+                
+                if combined_text:
+                    logger.info(f"Successfully extracted {len(combined_text)} chars from PDF")
+                    return self.sanitize_input(combined_text)
+                else:
+                    logger.warning("No text extracted from any page, falling back to PyPDF2")
+                    return self._extract_text_fallback(pdf_path)
+                    
+            except ImportError:
+                logger.warning("pdf2image not available, trying PyPDF2 extraction")
+                return self._extract_text_fallback(pdf_path)
+                
         except Exception as e:
-            logger.exception(f"Error extracting text from PDF with OCR: {str(e)}")
+            logger.exception(f"Error extracting text from PDF: {str(e)}")
+            return self._extract_text_fallback(pdf_path)
+    
+    def _extract_text_fallback(self, pdf_path):
+        """Fallback method for extracting text from PDFs when OCR fails"""
+        try:
+            import PyPDF2
+            
+            logger.info(f"Using PyPDF2 fallback extraction for: {pdf_path}")
+            
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                page_count = len(pdf_reader.pages)
+                
+                text = []
+                pages_to_process = min(50, page_count)
+                
+                for i in range(pages_to_process):
+                    try:
+                        page = pdf_reader.pages[i]
+                        page_text = page.extract_text()
+                        
+                        if page_text and len(page_text.strip()) > 0:
+                            text.append(f"\n\n--- Page {i+1} ---\n\n{page_text}")
+                    except Exception as e:
+                        logger.warning(f"Error extracting text from page {i+1}: {str(e)}")
+                
+                result = "\n".join(text)
+                
+                if result and len(result.strip()) > 0:
+                    logger.info(f"Successfully extracted {len(result)} chars with PyPDF2")
+                    return self.sanitize_input(result)
+                else:
+                    logger.warning("No text extracted with PyPDF2 either")
+                    return ""
+                    
+        except Exception as e:
+            logger.exception(f"Error in PDF fallback extraction: {str(e)}")
             return ""
     
     def analyze_image_content(self, image_path, api_key=None):

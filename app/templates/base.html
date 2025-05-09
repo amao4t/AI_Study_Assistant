@@ -99,63 +99,70 @@
 
     <!-- Footer -->
     <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-logo">
-                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="AI Assistant Logo">
-                    <span>APSA</span>
-                </div>
-                
-                <div class="footer-links">
-                    <div class="footer-section">
-                        <h3>Features</h3>
-                        <ul>
-                            <li><a href="{{ url_for('main.documents_dashboard') }}">AskDOC</a></li>
-                            <li><a href="{{ url_for('main.questions_dashboard') }}">Q&A Generator</a></li>
-                            <li><a href="{{ url_for('main.text_dashboard') }}">Construct</a></li>
-                            <li><a href="{{ url_for('main.study_dashboard') }}">AI Assistant</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="footer-section">
-                        <h3>Resources</h3>
-                        <ul>
-                            <li><a href="#">Documentation</a></li>
-                            <li><a href="#">FAQ</a></li>
-                            <li><a href="#">Blog</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="footer-section">
-                        <h3>Company</h3>
-                        <ul>
-                            <li><a href="#">About Us</a></li>
-                            <li><a href="#">Contact</a></li>
-                            <li><a href="#">Privacy Policy</a></li>
-                            <li><a href="#">Terms of Service</a></li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="footer-social">
-                    <h3>Connect With Us</h3>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-linkedin"></i></a>
-                        <a href="#"><i class="fab fa-github"></i></a>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2025 AI Powered Study Assistant. All rights reserved.</p>
-            </div>
+      <div class="footer-container">
+        <div class="footer-column">
+          <h4>Features</h4>
+          <ul>
+            <li><a href="#" onclick="showModal('AskDOC', 'AskDOC helps you interact with documents using AI-powered queries.')">AskDOC</a></li>
+            <li><a href="#" onclick="showModal('Q&A Generator', 'Q&A Generator creates questions and answers from your documents.')">Q&A Generator</a></li>
+            <li><a href="#" onclick="showModal('Construct', 'Construct allows you to build study materials efficiently.')">Construct</a></li>
+            <li><a href="#" onclick="showModal('AI Assistant', 'AI Assistant provides smart support for your study needs.')">AI Assistant</a></li>
+          </ul>
         </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="#" onclick="showModal('Documentation', 'Find detailed documentation about how to use the platform.')">Documentation</a></li>
+            <li><a href="#" onclick="showModal('FAQ', 'Frequently Asked Questions to help you get started.')">FAQ</a></li>
+            <li><a href="#" onclick="showModal('Blog', 'Read our latest blog posts and updates.')">Blog</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#" onclick="showModal('About Us', 'This is a personal project developed by Duong Manh Vu.')">About Us</a></li>
+            <li><a href="#" onclick="showModal('Contact', 'amao4t@csu.fullerton.edu')">Contact</a></li>
+            <li><a href="#" onclick="showModal('Privacy Policy', `We respect your privacy. Your data is only used for providing and improving our services. We do not share your personal information with third parties except as required by law. By using this platform, you agree to our data practices.`);">Privacy Policy</a></li>
+            <li><a href="#" onclick="showModal('Terms of Service', `By using this platform, you agree to use it responsibly and not for any unlawful purposes. We reserve the right to modify or discontinue the service at any time. Continued use of the service constitutes acceptance of any changes.`);">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect With Us</h4>
+          <div class="footer-social">
+            <a href="https://twitter.com/" target="_blank" onclick="showModal('Twitter', 'Follow us on Twitter for updates!')"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/twitter.svg" alt="Twitter" class="social-icon"></a>
+            <a href="https://www.linkedin.com/in/duong-vu-9723362b3/" target="_blank" onclick="showModal('LinkedIn', 'Connect with Duong Manh Vu on LinkedIn: https://www.linkedin.com/in/duong-vu-9723362b3/')"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/linkedin.svg" alt="LinkedIn" class="social-icon"></a>
+            <a href="https://github.com/amao4t/" target="_blank" onclick="showModal('GitHub', 'Visit our GitHub: https://github.com/amao4t/')"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub" class="social-icon"></a>
+          </div>
+        </div>
+      </div>
     </footer>
 
+    <!-- Modal Popup -->
+    <div id="footerModal" class="footer-modal">
+      <div class="footer-modal-content">
+        <span class="close" onclick="closeFooterModal()">&times;</span>
+        <h2 id="modalTitle"></h2>
+        <p id="modalBody"></p>
+      </div>
+    </div>
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    
+    <script>
+    function showModal(title, body) {
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerText = body;
+      document.getElementById('footerModal').style.display = 'block';
+    }
+    function closeFooterModal() {
+      document.getElementById('footerModal').style.display = 'none';
+    }
+    window.onclick = function(event) {
+      var modal = document.getElementById('footerModal');
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
+    }
+    </script>
     <!-- Custom JS block for specific pages -->
     {% block custom_js %}{% endblock %}
 </body>

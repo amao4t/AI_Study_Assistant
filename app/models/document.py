@@ -140,6 +140,7 @@ class StudySession(db.Model):
     end_time = db.Column(db.DateTime, nullable=True)
     session_type = db.Column(db.String(20), nullable=False)  # qa, document_review, etc.
     notes = db.Column(db.Text, nullable=True)
+    session_metadata = db.Column(db.JSON, nullable=True)  # Store pause/resume info and other metadata
     
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -153,11 +154,76 @@ class StudySession(db.Model):
         self.end_time = datetime.utcnow()
         db.session.commit()
     
+    def pause_session(self):
+        """Pause the study session"""
+        self.end_time = datetime.utcnow()
+        
+        # Initialize metadata if not exists
+        if self.session_metadata is None:
+            self.session_metadata = {}
+            
+        # Initialize pauses list if not exists
+        if 'pauses' not in self.session_metadata:
+            self.session_metadata['pauses'] = []
+            
+        # Add pause info
+        self.session_metadata['pauses'].append({
+            'pause_time': self.end_time.isoformat(),
+            'duration_seconds': int(self.calculate_duration() * 60) if self.calculate_duration() else 0  # Convert to seconds
+        })
+        
+        db.session.commit()
+        
+        return self.end_time
+    
+    def resume_session(self):
+        """Resume a paused session"""
+        if not self.end_time:
+            return False
+            
+        # Calculate elapsed time
+        elapsed_seconds = int((self.end_time - self.start_time).total_seconds())
+        
+        # Set new virtual start time
+        self.start_time = datetime.utcnow() - timedelta(seconds=elapsed_seconds)
+        self.end_time = None
+        
+        db.session.commit()
+        return True
+    
     def calculate_duration(self):
         """Calculate the duration of the study session in minutes"""
         if self.end_time:
             return (self.end_time - self.start_time).total_seconds() / 60
         return None
+    
+    def get_total_duration(self):
+        """Get total duration including all sessions"""
+        if not self.session_metadata or 'pauses' not in self.session_metadata:
+            return self.calculate_duration()
+        
+        # If session is still active
+        if not self.end_time:
+            current_duration = (datetime.utcnow() - self.start_time).total_seconds() / 60
+            return current_duration
+        
+        # If session is ended
+        return self.calculate_duration()
+        
+    def to_dict(self):
+        """Convert session to dictionary"""
+        return {
+            'id': self.id,
+            'start_time': self.start_time.isoformat() if self.start_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'session_type': self.session_type,
+            'notes': self.notes,
+            'document_id': self.document_id,
+            'duration_minutes': self.calculate_duration(),
+            'status': 'active' if not self.end_time else 'paused' if self.session_metadata and self.session_metadata.get('pauses') else 'completed',
+            'metadata': self.session_metadata,  # For backward compatibility
+            'session_metadata': self.session_metadata  # New field name
+        }
 
 
 class StudyPlan(db.Model):

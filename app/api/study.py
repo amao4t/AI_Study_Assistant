@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.document import StudySession, StudyPlan
 from app.services.study_assistant import StudyAssistant
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.sql import text
 
 study_bp = Blueprint('study', __name__, url_prefix='/api/study')
@@ -257,55 +257,119 @@ def clear_all_sessions():
 @study_bp.route('/sessions/<int:session_id>/pause', methods=['POST'])
 @login_required
 def pause_study_session(session_id):
-    """Pause a study session"""
-    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
-    
-    if not session:
-        return jsonify({'error': 'Study session not found'}), 404
-    
-    if session.end_time:
-        return jsonify({'error': 'Study session already ended'}), 400
-    
+    """Pause a study session instead of fully ending it"""
     try:
-        # For now, just mark it as paused (you might need to add a status field to your model)
-        # This is a temporary solution - ideally you'd add a 'status' field to StudySession
-        session.notes = (session.notes or '') + '\n[PAUSED]'
-        db.session.commit()
+        session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
+        
+        if not session:
+            return jsonify({
+                'success': False,
+                'error': 'Study session not found'
+            }), 404
+        
+        # Check if session is already ended
+        if session.end_time:
+            return jsonify({
+                'success': False,
+                'error': 'Session is already paused or ended'
+            }), 400
+        
+        # Get data from request
+        data = request.get_json() or {}
+        pause_notes = data.get('notes')
+        
+        # Update notes if provided
+        if pause_notes:
+            session.notes = pause_notes
+        
+        # Pause session
+        pause_time = session.pause_session()
         
         return jsonify({
+            'success': True,
             'message': 'Study session paused',
-            'session_id': session.id
+            'session_id': session.id,
+            'pause_time': pause_time.isoformat(),
+            'duration_minutes': session.calculate_duration(),
+            'metadata': session.session_metadata
         }), 200
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @study_bp.route('/sessions/<int:session_id>/resume', methods=['POST'])
 @login_required
 def resume_study_session(session_id):
     """Resume a paused study session"""
-    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
-    
-    if not session:
-        return jsonify({'error': 'Study session not found'}), 404
-    
-    if session.end_time:
-        return jsonify({'error': 'Study session already ended'}), 400
-    
     try:
-        # Remove the paused marker
-        if session.notes and '[PAUSED]' in session.notes:
-            session.notes = session.notes.replace('\n[PAUSED]', '')
+        session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).first()
+        
+        if not session:
+            return jsonify({
+                'success': False,
+                'error': 'Study session not found'
+            }), 404
+        
+        # Get session start time and previous end time (if any)
+        start_time = session.start_time
+        end_time = session.end_time
+        
+        # Check if session is paused
+        if not end_time:
+            return jsonify({
+                'success': False,
+                'error': 'Session is not in paused state'
+            }), 400
+        
+        # Calculate elapsed time so far (seconds)
+        elapsed_time_seconds = int((end_time - start_time).total_seconds())
+        
+        # Get data from request
+        data = request.get_json() or {}
+        resume_time = datetime.fromisoformat(data.get('resume_time', datetime.utcnow().isoformat()))
+        
+        # Save previous study time in metadata
+        if not session.session_metadata:
+            session.session_metadata = {}
+        
+        if not session.session_metadata.get('pauses'):
+            session.session_metadata['pauses'] = []
+        
+        session.session_metadata['pauses'].append({
+            'start_time': start_time.isoformat(),
+            'pause_time': end_time.isoformat(),
+            'resume_time': resume_time.isoformat(),
+            'duration_seconds': elapsed_time_seconds
+        })
+        
+        # Update session data
+        session.start_time = resume_time - timedelta(seconds=elapsed_time_seconds)
+        session.end_time = None  # Reset end_time to null to indicate active session
+        
+        # Update notes if provided
+        if 'notes' in data:
+            session.notes = data.get('notes')
         
         db.session.commit()
         
         return jsonify({
+            'success': True,
             'message': 'Study session resumed',
-            'session_id': session.id
+            'session_id': session.id,
+            'elapsed_time_seconds': elapsed_time_seconds,
+            'start_time': session.start_time.isoformat(),
+            'metadata': session.session_metadata
         }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # ---- Study Plans API endpoints ----
 

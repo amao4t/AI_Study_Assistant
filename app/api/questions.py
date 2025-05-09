@@ -378,9 +378,13 @@ def generate_questions_for_document(document_id):
 def clear_history():
     """Delete all saved questions for the current user"""
     try:
+        logger.info(f"Request to clear question history for user {current_user.id}")
+        
         # Get all questions for the user
         questions = Question.query.filter_by(user_id=current_user.id).all()
         count = len(questions)
+        
+        logger.info(f"Found {count} questions to delete for user {current_user.id}")
         
         # Delete all questions
         for question in questions:
@@ -389,6 +393,7 @@ def clear_history():
         db.session.commit()
         
         log_api_access("clear_quiz_history", True, {"count": count})
+        logger.info(f"Successfully deleted {count} questions for user {current_user.id}")
         
         return jsonify({
             'success': True,
@@ -398,9 +403,15 @@ def clear_history():
         
     except Exception as e:
         db.session.rollback()
-        logger.exception("Error clearing question history")
-        log_api_access("clear_quiz_history", False)
-        raise APIError.from_exception(e, default_message="Failed to clear question history")
+        logger.exception(f"Error clearing question history for user {current_user.id}: {str(e)}")
+        log_api_access("clear_quiz_history", False, {"error": str(e)})
+        
+        # Return a proper error response
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': "Failed to clear question history"
+        }), 500
 
 @questions_bp.route('/save', methods=['POST'])
 @login_required

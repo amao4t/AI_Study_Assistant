@@ -68,7 +68,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (clearHistoryBtn) {
-        clearHistoryBtn.addEventListener('click', clearQuizHistory);
+        // Remove old handler if exists
+        clearHistoryBtn.removeEventListener('click', clearQuizHistory);
+        // Add new handler with logging 
+        clearHistoryBtn.addEventListener('click', function(e) {
+            console.log("Clear history button clicked");
+            clearQuizHistory();
+        });
+        console.log("Clear history button event listener added");
+    } else {
+        console.log("Clear history button not found in the DOM", document.getElementById('clear-history-btn'));
     }
     
     // Load study statistics
@@ -844,23 +853,32 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to make API calls
     async function fetchAPI(url, options = {}) {
+        console.log(`Fetching API: ${url}`, options);
+        
         try {
             const response = await fetch(url, {
                 ...options,
                 credentials: 'same-origin'
             });
             
+            console.log(`API response status: ${response.status}`);
+            
             if (!response.ok) {
                 const text = await response.text();
+                console.error(`API error response: ${text}`);
+                
                 try {
                     const json = JSON.parse(text);
                     throw new Error(json.error || `API Error: ${response.status}`);
-                } catch (e) {
-                    throw new Error(`API Error: ${response.status}`);
+                } catch (parseError) {
+                    console.error("Could not parse error response as JSON:", parseError);
+                    throw new Error(`API Error: ${response.status} - ${text.substring(0, 100)}`);
                 }
             }
             
-            return response.json();
+            const data = await response.json();
+            console.log(`API response data:`, data);
+            return data;
         } catch (error) {
             console.error('Fetch error:', error);
             throw error;
@@ -930,14 +948,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to clear quiz history
     async function clearQuizHistory() {
+        console.log("clearQuizHistory function called");
+        
         if (!confirm('Are you sure you want to clear all quiz history? This cannot be undone.')) {
+            console.log("User cancelled the operation");
             return;
         }
         
         try {
+            console.log("Sending request to clear quiz history");
+            
             const response = await fetchAPI('/api/questions/clear-history', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
+            
+            console.log("Response received:", response);
             
             if (response.success) {
                 showNotification('Quiz history cleared successfully', 'success');
@@ -946,7 +974,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderSavedQuestions();
                 // Reload stats
                 loadStudyStatistics();
+                
+                console.log("Quiz history cleared successfully");
             } else {
+                console.error("Failed to clear quiz history, API returned false success");
                 showNotification('Failed to clear quiz history', 'danger');
             }
         } catch (error) {
